@@ -17,6 +17,11 @@ export function createTaskIpcHandlers(
     return { task };
   });
 
+  registry.handle(IPC_CHANNELS.TASK_LIST, () => {
+    const tasks = storage.listTasks();
+    return { tasks };
+  });
+
   registry.handle(IPC_CHANNELS.TASK_GET, (_event: any, data: { taskId: string }) => {
     const task = storage.getTask(data.taskId);
     return { task };
@@ -29,7 +34,8 @@ export function createTaskIpcHandlers(
 
   registry.handle(IPC_CHANNELS.TASK_START, async (_event: any, data: { taskId: string }) => {
     await taskEngine.start(data.taskId);
-    webContents.send(IPC_CHANNELS.TASK_STATUS_CHANGED, { taskId: data.taskId, status: 'running' });
+    const status = taskEngine.getStatus(data.taskId);
+    webContents.send(IPC_CHANNELS.TASK_STATUS_CHANGED, { taskId: data.taskId, status });
     return { success: true };
   });
 

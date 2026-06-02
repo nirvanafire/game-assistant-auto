@@ -47,6 +47,7 @@ export class TaskEngine {
 
     const abort = new AbortController();
     this.abortControllers.set(taskId, abort);
+    this.statuses.set(taskId, 'running');
 
     // Health check before execution
     try {
@@ -66,12 +67,24 @@ export class TaskEngine {
         this.statuses.set(taskId, 'failed');
         this.abortControllers.delete(taskId);
         this.logger?.error('TaskEngine', 'Python service is not healthy');
+        const runId = this.storage.createTaskRun({ taskId });
+        this.storage.updateTaskRun(runId, {
+          endedAt: new Date().toISOString(),
+          result: 'failed',
+          log: [],
+        });
         return;
       }
     } catch (err: any) {
       this.statuses.set(taskId, 'failed');
       this.abortControllers.delete(taskId);
       this.logger?.error('TaskEngine', `Python service unavailable: ${err.message}`);
+      const runId = this.storage.createTaskRun({ taskId });
+      this.storage.updateTaskRun(runId, {
+        endedAt: new Date().toISOString(),
+        result: 'failed',
+        log: [],
+      });
       return;
     }
 
@@ -82,10 +95,16 @@ export class TaskEngine {
       return;
     }
 
-    const runId = this.storage.createTaskRun({ taskId });
+    let runId: string;
+    try {
+      runId = this.storage.createTaskRun({ taskId });
+    } catch (err: any) {
+      this.statuses.set(taskId, 'failed');
+      this.abortControllers.delete(taskId);
+      this.logger?.error('TaskEngine', `Failed to create task run: ${err.message}`);
+      return;
+    }
     const runLog: any[] = [];
-
-    this.statuses.set(taskId, 'running');
 
     const ctx: StepContext = {
       variables: new Map(),
@@ -94,7 +113,7 @@ export class TaskEngine {
     };
 
     try {
-      await this.executeSteps(task, steps, ctx, abort.signal);
+      await this.executeSteps(task, steps, ctx, abort.signal, runLog);
       this.storage.updateTaskRun(runId, {
         endedAt: new Date().toISOString(),
         result: this.statuses.get(taskId) === 'completed' ? 'completed' : 'stopped',
@@ -164,6 +183,7 @@ export class TaskEngine {
     steps: Step[],
     ctx: StepContext,
     signal: AbortSignal,
+    runLog: any[],
   ): Promise<void> {
     const taskId = task.id;
     const settings = task.settings;
@@ -209,6 +229,7 @@ export class TaskEngine {
             await this.checkInterrupts(task, ctx, signal);
 
             const result = await this.executeStepWithTimeout(groupStep, ctx, settings.stepTimeoutMs, signal);
+            runLog.push({ stepId: groupStep.id, type: groupStep.type, matched: result, timestamp: new Date().toISOString() });
             const transition = result ? groupStep.onMatch : groupStep.onMiss;
 
             if (transition.action === 'END_TASK') {
@@ -237,6 +258,7 @@ export class TaskEngine {
         await this.checkInterrupts(task, ctx, signal);
 
         const result = await this.executeStepWithTimeout(currentStep, ctx, settings.stepTimeoutMs, signal);
+        runLog.push({ stepId: currentStep.id, type: currentStep.type, matched: result, timestamp: new Date().toISOString() });
         const transition = result ? currentStep.onMatch : currentStep.onMiss;
 
         if (transition.action === 'END_TASK') {
@@ -320,6 +342,9 @@ export class TaskEngine {
         if (config.source === 'from_step' && config.stepId) {
           const matchResult = ctx.variables.get(config.stepId);
           if (!matchResult) return false;
+          await this.clicker.click(matchResult.x, matchResult.y);
+        } else if (config.source === 'fixed' && config.fixedCoords) {
+          await this.clicker.click(config.fixedCoords.x, config.fixedCoords.y);
         }
         return true;
       }

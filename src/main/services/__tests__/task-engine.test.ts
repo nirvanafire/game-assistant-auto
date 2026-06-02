@@ -159,4 +159,30 @@ describe('TaskEngine', () => {
     expect(mockMatcher.match).toHaveBeenCalledTimes(2);
     expect(engine.getStatus('t1')).toBe('completed');
   });
+
+  it('CLICK step actually clicks match coordinates', async () => {
+    mockStorage.listSteps.mockReturnValue([
+      { id: 's1', taskId: 't1', type: 'IMAGE_MATCH', order: 1, config: { templatePath: '/img.png', threshold: 0.8, delayMs: 0, retryCount: 0, retryIntervalMs: 0, scaleRange: [0.5, 2] }, onMatch: { nextStepId: 's2' }, onMiss: { action: 'END_TASK' }, screenshotBeforeMatch: true },
+      { id: 's2', taskId: 't1', type: 'CLICK', order: 2, config: { source: 'from_step', stepId: 's1' }, onMatch: { action: 'END_TASK' }, onMiss: { action: 'END_TASK' }, screenshotBeforeMatch: false },
+    ]);
+    await engine.start('t1');
+    expect(mockClicker.click).toHaveBeenCalledWith(100, 200);
+    expect(engine.getStatus('t1')).toBe('completed');
+  });
+
+  it('creates TaskRun record on health check failure', async () => {
+    mockMatcher.health.mockRejectedValue(new Error('Connection refused'));
+    await engine.start('t1');
+    expect(mockStorage.createTaskRun).toHaveBeenCalledWith({ taskId: 't1' });
+    expect(mockStorage.updateTaskRun).toHaveBeenCalledWith('run-1', expect.objectContaining({ result: 'failed' }));
+  });
+
+  it('populates run log with step results', async () => {
+    await engine.start('t1');
+    expect(mockStorage.updateTaskRun).toHaveBeenCalledWith('run-1', expect.objectContaining({
+      log: expect.arrayContaining([
+        expect.objectContaining({ stepId: 's1', type: 'IMAGE_MATCH', matched: true }),
+      ]),
+    }));
+  });
 });
