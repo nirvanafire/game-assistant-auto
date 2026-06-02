@@ -48,6 +48,7 @@ export const IPC_CHANNELS = {
   BROWSER_GO_BACK: 'browser:go-back',
   BROWSER_GO_FORWARD: 'browser:go-forward',
   BROWSER_RELOAD: 'browser:reload',
+  BROWSER_LOADING_STATE: 'browser:loading-state',
 } as const;
 
 export type IPCChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];

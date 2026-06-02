@@ -1,14 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { Input, Space, Button, message } from 'antd';
+import { Input, Space, Button, Spin, message } from 'antd';
 import { ReloadOutlined, ArrowLeftOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import { IPC_CHANNELS } from '@shared/constants';
 
 export const BrowserPanel: React.FC = () => {
   const [url, setUrl] = useState('');
   const [currentUrl, setCurrentUrl] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     loadCurrentUrl();
+  }, []);
+
+  useEffect(() => {
+    const api = (window as any).electronAPI;
+    if (!api) return;
+
+    const unsubscribe = api.on(IPC_CHANNELS.BROWSER_LOADING_STATE, (_event: any, data: { loading: boolean; error?: string }) => {
+      setLoading(data.loading);
+      if (data.error) {
+        message.error(`Page load failed: ${data.error}`);
+      }
+    });
+
+    return () => {
+      if (typeof unsubscribe === 'function') unsubscribe();
+    };
   }, []);
 
   const loadCurrentUrl = async () => {
@@ -60,14 +77,16 @@ export const BrowserPanel: React.FC = () => {
         <Button icon={<ArrowLeftOutlined />} size="small" onClick={handleBack} />
         <Button icon={<ArrowRightOutlined />} size="small" onClick={handleForward} />
         <Button icon={<ReloadOutlined />} size="small" onClick={handleRefresh} />
-        <Input
-          value={url}
-          onChange={e => setUrl(e.target.value)}
-          onPressEnter={handleNavigate}
-          placeholder="Enter URL..."
-          style={{ width: 400 }}
-          size="small"
-        />
+        <Spin spinning={loading}>
+          <Input
+            value={url}
+            onChange={e => setUrl(e.target.value)}
+            onPressEnter={handleNavigate}
+            placeholder="Enter URL..."
+            style={{ width: 400 }}
+            size="small"
+          />
+        </Spin>
         <Button type="primary" size="small" onClick={handleNavigate}>Go</Button>
       </Space>
     </div>
