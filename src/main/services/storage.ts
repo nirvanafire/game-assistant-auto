@@ -167,6 +167,64 @@ export class StorageService {
     this.db.prepare('DELETE FROM task_groups WHERE id = ?').run(id);
   }
 
+  createTaskRun(data: { taskId: string }): string {
+    const id = uuidv4();
+    const now = new Date().toISOString();
+    this.db.prepare(
+      'INSERT INTO task_runs (id, task_id, started_at, log) VALUES (?, ?, ?, ?)'
+    ).run(id, data.taskId, now, '[]');
+    return id;
+  }
+
+  updateTaskRun(id: string, data: { endedAt?: string; result?: string; log?: any[] }): void {
+    const updates: Array<[string, any[]]> = [];
+    if (data.endedAt !== undefined) {
+      updates.push(['UPDATE task_runs SET ended_at = ? WHERE id = ?', [data.endedAt, id]]);
+    }
+    if (data.result !== undefined) {
+      updates.push(['UPDATE task_runs SET result = ? WHERE id = ?', [data.result, id]]);
+    }
+    if (data.log !== undefined) {
+      updates.push(['UPDATE task_runs SET log = ? WHERE id = ?', [JSON.stringify(data.log), id]]);
+    }
+    if (updates.length === 0) return;
+    const runAll = this.db.transaction(() => {
+      for (const [sql, params] of updates) {
+        this.db.prepare(sql).run(...params);
+      }
+    });
+    runAll();
+  }
+
+  createTaskGroupRun(data: { taskGroupId: string }): string {
+    const id = uuidv4();
+    const now = new Date().toISOString();
+    this.db.prepare(
+      'INSERT INTO task_group_runs (id, task_group_id, started_at, log) VALUES (?, ?, ?, ?)'
+    ).run(id, data.taskGroupId, now, '[]');
+    return id;
+  }
+
+  updateTaskGroupRun(id: string, data: { endedAt?: string; result?: string; log?: any[] }): void {
+    const updates: Array<[string, any[]]> = [];
+    if (data.endedAt !== undefined) {
+      updates.push(['UPDATE task_group_runs SET ended_at = ? WHERE id = ?', [data.endedAt, id]]);
+    }
+    if (data.result !== undefined) {
+      updates.push(['UPDATE task_group_runs SET result = ? WHERE id = ?', [data.result, id]]);
+    }
+    if (data.log !== undefined) {
+      updates.push(['UPDATE task_group_runs SET log = ? WHERE id = ?', [JSON.stringify(data.log), id]]);
+    }
+    if (updates.length === 0) return;
+    const runAll = this.db.transaction(() => {
+      for (const [sql, params] of updates) {
+        this.db.prepare(sql).run(...params);
+      }
+    });
+    runAll();
+  }
+
   updateTaskGroup(id: string, data: Partial<{ name: string; failurePolicy: FailurePolicy; retryCount: number }>): void {
     const now = new Date().toISOString();
     const updates: Array<[string, any[]]> = [];

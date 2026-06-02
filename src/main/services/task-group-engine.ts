@@ -17,6 +17,8 @@ export class TaskGroupEngine {
     if (!group) throw new Error(`Task group not found: ${taskGroupId}`);
 
     const items = this.storage.listTaskGroupItems(taskGroupId);
+    const runId = this.storage.createTaskGroupRun({ taskGroupId });
+    const runLog: any[] = [];
     this.running.set(taskGroupId, true);
 
     for (const item of items) {
@@ -28,10 +30,23 @@ export class TaskGroupEngine {
         group.retryCount,
       );
 
+      runLog.push({
+        taskId: item.taskId,
+        success,
+        timestamp: new Date().toISOString(),
+      });
+
       if (!success && group.failurePolicy === 'STOP') {
         break;
       }
     }
+
+    const result = this.running.get(taskGroupId) === false ? 'stopped' : 'completed';
+    this.storage.updateTaskGroupRun(runId, {
+      endedAt: new Date().toISOString(),
+      result,
+      log: runLog,
+    });
 
     this.running.delete(taskGroupId);
   }

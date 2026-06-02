@@ -13,6 +13,8 @@ describe('TaskGroupEngine', () => {
         { id: 'i1', taskGroupId: 'g1', taskId: 't1', order: 1 },
         { id: 'i2', taskGroupId: 'g1', taskId: 't2', order: 2 },
       ]),
+      createTaskGroupRun: vi.fn().mockReturnValue('grun-1'),
+      updateTaskGroupRun: vi.fn(),
     };
     mockTaskEngine = {
       start: vi.fn().mockResolvedValue(undefined),
@@ -52,5 +54,11 @@ describe('TaskGroupEngine', () => {
   it('throws on missing group', async () => {
     mockStorage.getTaskGroup.mockReturnValue(undefined);
     await expect(engine.start('missing')).rejects.toThrow('not found');
+  });
+
+  it('persists task group run history', async () => {
+    await engine.start('g1');
+    expect(mockStorage.createTaskGroupRun).toHaveBeenCalledWith({ taskGroupId: 'g1' });
+    expect(mockStorage.updateTaskGroupRun).toHaveBeenCalledWith('grun-1', expect.objectContaining({ result: 'completed' }));
   });
 });
