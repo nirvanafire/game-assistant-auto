@@ -8,6 +8,7 @@
     "build": "electron-vite build",
     "test": "vitest",
     "test:run": "vitest run",
+    "build:python": "cd python-service && pyinstaller matcher.spec --distpath ../bin --workpath ../build/pyinstaller --noconfirm",
     "package:win": "electron-builder --win",
     "package:mac": "electron-builder --mac"
   },
