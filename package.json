@@ -1,18 +1,20 @@
 {
   "name": "game-assistant-auto",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "directories": {
-    "doc": "docs"
-  },
+  "description": "Web game assistant with embedded browser and image matching",
+  "main": "src/main/index.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "package:win": "electron-builder --win",
+    "package:mac": "electron-builder --mac"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
     "antd": "^6.4.3",
     "better-sqlite3": "^12.10.0",

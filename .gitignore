@@ -5,3 +5,7 @@ templates/
 *.db
 *.log
 .DS_Store
+.env
+.env.*
+.idea/
+.vscode/
