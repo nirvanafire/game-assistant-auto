@@ -14,6 +14,29 @@ Dual storage: SQLite for structured data (tasks, steps, network logs, run histor
 4. Automatic database creation on first run
 5. Data stored in user data directory (platform-specific)
 
+### Detailed Requirements
+
+#### SQLite storage
+The system SHALL use SQLite for all structured data: tasks, steps, step groups, task groups, task group items, task runs, task group runs, and network logs.
+
+#### Schema migrations
+The system SHALL support database schema versioning with migrations. Migrations run automatically on app start.
+
+#### JSON import/export
+The system SHALL export task definitions and task groups as JSON files. The system SHALL import tasks and task groups from JSON.
+
+#### Storage location
+Data SHALL be stored in the platform-specific user data directory.
+
+- **Windows**: %APPDATA%/game-assistant/
+- **macOS**: ~/Library/Application Support/game-assistant/
+
+#### WAL mode
+SQLite SHALL use WAL mode for concurrent read/write performance.
+
+#### Template image storage
+Template images SHALL be stored as files in the templates directory. The database stores file paths only.
+
 ### Storage Locations
 
 ```

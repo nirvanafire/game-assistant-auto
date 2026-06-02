@@ -18,6 +18,38 @@ Captures all network traffic from the embedded browser using Chrome DevTools Pro
 8. Start/stop monitoring on demand
 9. Real-time log streaming to renderer (via IPC)
 
+### Detailed Requirements
+
+#### CDP-based network capture
+The system SHALL attach to the embedded browser via Chrome DevTools Protocol and capture all HTTP/HTTPS traffic.
+
+#### HTTP request capture
+WHEN the browser makes an HTTP request, THEN the system records URL, method, request headers, request body, timing, and resource type.
+
+#### HTTP response capture
+WHEN an HTTP response is received, THEN the system records status code, response headers, response body, and duration.
+
+#### WebSocket capture
+The system SHALL capture WebSocket connection events and frame data.
+
+#### Large body handling
+Response bodies exceeding 1MB SHALL be stored as files. The database records the file path.
+
+#### Log persistence
+All captured network data SHALL be stored in SQLite.
+
+#### Start/stop monitoring
+The system SHALL allow starting and stopping network monitoring on demand.
+
+#### Log filtering
+The system SHALL support filtering network logs by URL, method, status code, resource type, and time range.
+
+#### Log export
+The system SHALL export network logs as JSON.
+
+#### Real-time streaming
+Network log entries SHALL be streamed to the renderer in real-time via IPC.
+
 ### Non-functional
 
 1. Monitoring must not significantly impact browser performance

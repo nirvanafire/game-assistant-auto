@@ -25,6 +25,67 @@ Executes automated game workflows composed of steps. Supports branching logic, s
 15. Task can belong to multiple task groups simultaneously
 16. Task group execution state is independent of task status (task status unchanged when run as part of a group)
 
+### Detailed Requirements
+
+#### Task lifecycle
+The system SHALL manage task execution with states: idle, running, paused, completed, failed, stopped.
+
+- **Start task**: WHEN a task with valid steps is started, THEN status changes to running and execution begins from the first step
+- **Stop task**: WHEN user stops a running task, THEN status changes to stopped and execution halts immediately
+
+#### Step types
+The system SHALL support three step types: IMAGE_MATCH, IMAGE_GROUP, and CLICK.
+
+- **IMAGE_MATCH step**: capture a screenshot, match the template, store the result
+- **CLICK step**: simulate a mouse click at the specified coordinates
+
+#### Step branching
+Each step SHALL have onMatch and onMiss transitions that specify the next step or end the task.
+
+- **Match leads to next step**: WHEN IMAGE_MATCH finds a match and onMatch.nextStepId is set, THEN execution continues to the specified next step
+- **Miss ends task**: WHEN IMAGE_MATCH finds no match and onMiss.action is "END_TASK", THEN the task completes
+
+#### Step groups
+The system SHALL support grouping steps with a loop count (0 = infinite).
+
+- **Step group with loop**: loopCount=3 means steps execute 3 times before continuing
+- **Infinite loop**: loopCount=0 means steps repeat until manually stopped
+
+#### Variable capture
+The system SHALL store image match results in a task-scoped variable map. CLICK steps SHALL reference coordinates from a previous step.
+
+- **Click uses captured coordinates**: step 1 (IMAGE_MATCH) finds match at (100, 200), step 2 (CLICK) with source="from_step" clicks at (100, 200)
+
+#### Interrupt handlers
+The system SHALL scan interrupt handlers before each step. If an interrupt is detected, the handler action executes and the current step retries.
+
+- **Interrupt detected**: WHEN a popup template matches before step execution, THEN the handler clicks to dismiss the popup and the current step retries
+
+#### Task groups
+The system SHALL support task groups that execute multiple tasks serially. The same task can appear multiple times in a group.
+
+- **Serial execution**: tasks A, B, C execute in order
+- **Same task repeated**: tasks A, B, A means A runs, then B, then A again
+
+#### Task group failure policy
+Task groups SHALL support failure policies: STOP (terminate group), SKIP (skip failed task), RETRY (retry N times).
+
+- **STOP policy**: task B fails → group stops, task C does not execute
+- **SKIP policy**: task B fails → task B is skipped, task C executes
+- **RETRY policy**: task B fails with retryCount=2 → task B is retried up to 2 times
+
+#### State isolation
+Task status SHALL remain independent of task group execution. Task group tracks its own execution progress.
+
+#### Screenshot control
+Each step SHALL have an optional screenshotBeforeMatch flag. When false (default), the step reuses the last screenshot.
+
+#### Step timeout and task timeout
+The system SHALL enforce per-step and per-task timeouts.
+
+- **Step timeout**: step does not complete within stepTimeoutMs → step fails, follows onMiss transition
+- **Task global timeout**: task does not complete within globalTimeoutMs → task stops with status failed
+
 ### Non-functional
 
 1. Task engine runs in main process (not renderer)

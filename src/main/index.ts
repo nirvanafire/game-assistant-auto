@@ -17,12 +17,16 @@ import { MatcherClient } from './services/matcher-client';
 import { ConfigService } from './services/config';
 import Database from 'better-sqlite3';
 import path from 'path';
+import fs from 'fs';
 
 const userDataPath = app.getPath('userData');
 const dataDir = path.join(userDataPath, 'data');
 const dbPath = path.join(dataDir, 'game-assistant.db');
 const logDir = path.join(dataDir, 'logs');
 const configPath = path.join(dataDir, 'config.json');
+
+fs.mkdirSync(dataDir, { recursive: true });
+fs.mkdirSync(logDir, { recursive: true });
 
 let db: Database.Database;
 let storage: StorageService;

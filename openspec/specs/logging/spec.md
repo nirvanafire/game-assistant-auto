@@ -17,6 +17,48 @@ System-wide logging with file persistence, debug mode toggle, auto-rotation by d
 7. Auto-cleanup: delete log files older than 30 days
 8. Log viewer UI: real-time display, filter by level, filter by source, search, clear, export
 
+### Detailed Requirements
+
+#### Log levels
+The system SHALL support four log levels: ERROR, WARN, INFO, DEBUG.
+
+- **Default logging**: debug mode off → only ERROR, WARN, INFO recorded
+- **Debug mode enabled**: debug mode on → DEBUG logs also recorded
+
+#### Global debug toggle
+The system SHALL provide a global debug toggle that persists across sessions.
+
+- **Toggle debug on**: user enables debug mode → DEBUG logs start appearing in real-time
+- **Toggle persists**: user enables debug mode and restarts app → debug mode remains enabled
+
+#### Dual output
+Logs SHALL be written to file and sent to the renderer simultaneously.
+
+#### File rotation by day
+The system SHALL create a new log file when the date changes.
+
+#### File rotation by size
+The system SHALL create a new log file when the current file exceeds 10MB.
+
+#### Log file naming
+Log files SHALL follow the pattern `game-assistant-{YYYY-MM-DD}.log`. Overflow files SHALL use `game-assistant-{YYYY-MM-DD}.{N}.log`.
+
+#### Auto-cleanup
+The system SHALL delete log files older than 30 days on app startup.
+
+#### Log format
+File logs SHALL use the format: `[timestamp] [LEVEL] [source] message`
+
+#### Log sources
+The system SHALL tag logs with their source module: TaskEngine, Matcher, Clicker, Network, Python, Storage, App.
+
+#### Log viewer UI
+The log viewer SHALL display logs in real-time with filtering by level, source, and text search. It SHALL support clearing the display and exporting logs.
+
+- **Filter by level**: user selects ERROR level → only ERROR logs displayed
+- **Search logs**: user types "timeout" → only logs containing "timeout" displayed
+- **Export logs**: user clicks export → file generated with currently displayed logs
+
 ### Non-functional
 
 1. Logging must not block main thread (async file writes)

@@ -17,6 +17,37 @@ Template matching service that locates a small template image within a browser s
 7. Coarse-to-fine matching: scan at 0.25 increments, refine at 0.05 increments around best match
 8. Scale cache: remember successful scale per session for faster subsequent matching
 
+### Detailed Requirements
+
+#### Single template matching
+The system SHALL match a single template image against a browser screenshot and return the center coordinates, confidence score, and matched scale.
+
+- **Successful match**: screenshot + template with threshold 0.8 → `{ matched: true, x, y, confidence, scale }` where confidence >= 0.8
+- **No match found**: no region exceeds threshold at any scale → `{ matched: false }`
+
+#### Multi-scale matching
+The system SHALL perform template matching across multiple scale factors to handle window resize and OS DPI scaling.
+
+- **Match at different scale**: template captured at 1.0x, browser renders at 1.25x → finds match at scale 1.25
+- **Configurable scale range**: scale_range [0.75, 1.5] → only scans within that range
+
+#### Coarse-to-fine matching
+The system SHALL use a two-pass approach: coarse scan at 0.25 step, then fine refinement at 0.05 step around the best match.
+
+#### Group template matching
+The system SHALL match multiple templates against a screenshot with ALL or ANY logic.
+
+- **ALL logic**: 3 templates provided → matched=true only if all 3 are found
+- **ANY logic**: 3 templates provided → matched=true for templates that are found
+
+#### Region of interest
+The system SHALL support an optional region-of-interest (ROI) to limit the search area for faster matching.
+
+- **ROI specified**: region { x, y, width, height } → system only searches within that region
+
+#### Health check endpoint
+The system SHALL expose a GET /health endpoint returning service status and version information.
+
 ### Non-functional
 
 1. Single match latency < 100ms (1920x1080 screenshot, 100x100 template)
