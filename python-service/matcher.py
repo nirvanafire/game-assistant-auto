@@ -6,8 +6,32 @@ from config import COARSE_STEP, FINE_STEP, FINE_RANGE
 # Per-session scale cache: template hash -> last successful scale
 _scale_cache: dict[str, float] = {}
 
+
 def _template_hash(img: np.ndarray) -> str:
     return hashlib.md5(img.tobytes()).hexdigest()
+
+
+def _fine_search(
+    screenshot: np.ndarray,
+    template: np.ndarray,
+    center: float,
+    scale_range: tuple[float, float],
+    threshold: float,
+    skip_below: float = 0.0,
+) -> dict:
+    min_scale, max_scale = scale_range
+    fine_start = max(min_scale, center - FINE_RANGE)
+    fine_end = min(max_scale, center + FINE_RANGE)
+    fine_scales = np.arange(fine_start, fine_end + FINE_STEP, FINE_STEP)
+    best = {'matched': False, 'confidence': 0, 'x': 0, 'y': 0, 'scale': 1.0}
+    for scale in fine_scales:
+        if skip_below > 0 and abs(scale - center) < skip_below:
+            continue
+        result = _try_match(screenshot, template, scale, threshold)
+        if result and result['confidence'] > best['confidence']:
+            best = result
+    return best
+
 
 def match_template(
     screenshot: np.ndarray,
@@ -18,26 +42,19 @@ def match_template(
     t_hash = _template_hash(template)
     cached_scale = _scale_cache.get(t_hash)
 
+    # Fast path: try cached scale with tight fine range
     if cached_scale is not None:
         min_scale, max_scale = scale_range
         if min_scale <= cached_scale <= max_scale:
-            fine_start = max(min_scale, cached_scale - FINE_RANGE)
-            fine_end = min(max_scale, cached_scale + FINE_RANGE)
-            fine_scales = np.arange(fine_start, fine_end + FINE_STEP, FINE_STEP)
-            best = {'matched': False, 'confidence': 0, 'x': 0, 'y': 0, 'scale': 1.0}
-            for scale in fine_scales:
-                result = _try_match(screenshot, template, scale, threshold)
-                if result and result['confidence'] > best['confidence']:
-                    best = result
+            best = _fine_search(screenshot, template, cached_scale, scale_range, threshold)
             if best['matched']:
                 _scale_cache[t_hash] = best['scale']
                 return best
 
+    # Coarse scan
     best = {'matched': False, 'confidence': 0, 'x': 0, 'y': 0, 'scale': 1.0}
-
     min_scale, max_scale = scale_range
     coarse_scales = np.arange(min_scale, max_scale + COARSE_STEP, COARSE_STEP)
-
     for scale in coarse_scales:
         result = _try_match(screenshot, template, scale, threshold)
         if result and result['confidence'] > best['confidence']:
@@ -46,20 +63,15 @@ def match_template(
     if not best['matched']:
         return {'matched': False}
 
-    fine_center = best['scale']
-    fine_start = max(min_scale, fine_center - FINE_RANGE)
-    fine_end = min(max_scale, fine_center + FINE_RANGE)
-    fine_scales = np.arange(fine_start, fine_end + FINE_STEP, FINE_STEP)
-
-    for scale in fine_scales:
-        if abs(scale - fine_center) < COARSE_STEP:
-            continue
-        result = _try_match(screenshot, template, scale, threshold)
-        if result and result['confidence'] > best['confidence']:
-            best = result
+    # Fine refinement around coarse best
+    fine = _fine_search(screenshot, template, best['scale'], scale_range, threshold,
+                        skip_below=FINE_STEP / 2)
+    if fine['matched'] and fine['confidence'] > best['confidence']:
+        best = fine
 
     _scale_cache[t_hash] = best['scale']
     return best
+
 
 def match_group(
     screenshot: np.ndarray,
@@ -86,6 +98,7 @@ def match_group(
                 r['matched'] = False
 
     return {'results': results}
+
 
 def _try_match(
     screenshot: np.ndarray,
