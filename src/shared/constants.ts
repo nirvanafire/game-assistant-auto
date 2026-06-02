@@ -49,6 +49,9 @@ export const IPC_CHANNELS = {
   BROWSER_GO_FORWARD: 'browser:go-forward',
   BROWSER_RELOAD: 'browser:reload',
   BROWSER_LOADING_STATE: 'browser:loading-state',
+  TASK_GROUP_UPDATE_LOOP: 'task-group:update-loop',
+  TASK_GROUP_UPDATE_ITEM_TARGET: 'task-group:update-item-target',
+  TASK_GROUP_REORDER_ITEMS: 'task-group:reorder-items',
 } as const;
 
 export type IPCChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];

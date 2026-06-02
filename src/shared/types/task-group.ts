@@ -5,6 +5,9 @@ export interface TaskGroup {
   name: string;
   failurePolicy: FailurePolicy;
   retryCount: number;
+  loopEnabled: boolean;
+  loopIntervalMs: number;
+  loopMaxIterations: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -14,6 +17,8 @@ export interface TaskGroupItem {
   taskGroupId: string;
   taskId: string;
   order: number;
+  onSuccess: string | null;
+  onFailure: string | null;
 }
 
 export interface TaskGroupItemRun {

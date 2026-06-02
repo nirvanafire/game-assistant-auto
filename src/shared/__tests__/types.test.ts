@@ -53,7 +53,37 @@ describe('IPC_CHANNELS', () => {
     expect(IPC_CHANNELS.BROWSER_LOADING_STATE).toBe('browser:loading-state');
   });
 
-  it('has 50 total channels', () => {
-    expect(Object.keys(IPC_CHANNELS)).toHaveLength(50);
+  it('has 53 total channels', () => {
+    expect(Object.keys(IPC_CHANNELS)).toHaveLength(53);
+  });
+
+  it('has new IPC channels for loop and jump-target', () => {
+    expect(IPC_CHANNELS.TASK_GROUP_UPDATE_LOOP).toBe('task-group:update-loop');
+    expect(IPC_CHANNELS.TASK_GROUP_UPDATE_ITEM_TARGET).toBe('task-group:update-item-target');
+    expect(IPC_CHANNELS.TASK_GROUP_REORDER_ITEMS).toBe('task-group:reorder-items');
+  });
+});
+
+describe('TaskGroup type', () => {
+  it('has loop fields', () => {
+    const group: import('../types/task-group').TaskGroup = {
+      id: '1', name: 'G', failurePolicy: 'STOP', retryCount: 0,
+      loopEnabled: true, loopIntervalMs: 60000, loopMaxIterations: 5,
+      createdAt: '', updatedAt: '',
+    };
+    expect(group.loopEnabled).toBe(true);
+    expect(group.loopIntervalMs).toBe(60000);
+    expect(group.loopMaxIterations).toBe(5);
+  });
+});
+
+describe('TaskGroupItem type', () => {
+  it('has jump target fields', () => {
+    const item: import('../types/task-group').TaskGroupItem = {
+      id: '1', taskGroupId: 'g', taskId: 't', order: 0,
+      onSuccess: 'item-2', onFailure: 'END',
+    };
+    expect(item.onSuccess).toBe('item-2');
+    expect(item.onFailure).toBe('END');
   });
 });
