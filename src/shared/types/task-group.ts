@@ -1,38 +1,35 @@
-export type FailurePolicy = 'stop' | 'continue' | 'skip';
+export type FailurePolicy = 'STOP' | 'SKIP' | 'RETRY';
+
+export interface TaskGroup {
+  id: string;
+  name: string;
+  failurePolicy: FailurePolicy;
+  retryCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TaskGroupItem {
+  id: string;
+  taskGroupId: string;
+  taskId: string;
+  order: number;
+}
 
 export interface TaskGroupItemRun {
-  taskRunId: string;
-  status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
-  startedAt?: number;
-  completedAt?: number;
-  error?: string;
+  itemOrder: number;
+  taskId: string;
+  result?: 'completed' | 'failed' | 'skipped';
+  startedAt?: string;
+  endedAt?: string;
+  taskRunId?: string;
 }
 
 export interface TaskGroupRun {
   id: string;
   taskGroupId: string;
-  status: 'pending' | 'running' | 'completed' | 'failed' | 'stopped';
+  startedAt: string;
+  endedAt?: string;
+  result?: 'completed' | 'failed' | 'stopped';
   items: TaskGroupItemRun[];
-  startedAt?: number;
-  completedAt?: number;
-  currentIteration: number;
-}
-
-export interface TaskGroupItem {
-  taskId: string;
-  order: number;
-  onFailure?: FailurePolicy;
-  retryCount?: number;
-}
-
-export interface TaskGroup {
-  id: string;
-  name: string;
-  description?: string;
-  items: TaskGroupItem[];
-  loopCount?: number;
-  loopDelay?: number;
-  onFailure?: FailurePolicy;
-  createdAt: number;
-  updatedAt: number;
 }

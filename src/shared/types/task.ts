@@ -1,79 +1,83 @@
-export type TaskStatus = 'pending' | 'running' | 'paused' | 'completed' | 'failed' | 'stopped';
+export type TaskStatus = 'idle' | 'running' | 'paused' | 'completed' | 'failed' | 'stopped';
 
-export type StepType = 'image-match' | 'image-group-match' | 'click' | 'wait' | 'custom';
+export type StepType = 'IMAGE_MATCH' | 'IMAGE_GROUP' | 'CLICK';
 
 export interface StepTransition {
-  nextStepId: string;
-  condition?: string;
+  nextStepId?: string;
+  action?: 'END_TASK' | 'END_GROUP_LOOP';
 }
 
 export interface ImageMatchConfig {
   templatePath: string;
-  confidence?: number;
-  region?: { x: number; y: number; width: number; height: number };
+  threshold: number;
+  delayMs: number;
+  retryCount: number;
+  retryIntervalMs: number;
+  scaleRange: [number, number];
+  captureRegion?: { x: number; y: number; width: number; height: number };
 }
 
 export interface ImageGroupMatchConfig {
-  templates: Array<{
-    id: string;
-    templatePath: string;
-    confidence?: number;
-  }>;
-  matchMode: 'first' | 'best' | 'all';
-  region?: { x: number; y: number; width: number; height: number };
+  templates: Array<{ label: string; templatePath: string; threshold: number }>;
+  logic: 'ALL' | 'ANY';
+  delayMs: number;
+  retryCount: number;
+  retryIntervalMs: number;
+  scaleRange: [number, number];
 }
 
 export interface ClickConfig {
-  x: number;
-  y: number;
-  button?: 'left' | 'right' | 'middle';
-  doubleClick?: boolean;
-  relativeToMatch?: boolean;
+  source: 'fixed' | 'from_step';
+  stepId?: string;
+  fixedCoords?: { x: number; y: number };
+  clickCount: number;
+  intervalMs: number;
+  delayMs: number;
+  button: 'left' | 'right';
 }
 
 export interface Step {
   id: string;
-  name: string;
+  taskId: string;
   type: StepType;
-  config: ImageMatchConfig | ImageGroupMatchConfig | ClickConfig | Record<string, unknown>;
-  transitions?: StepTransition[];
-  timeout?: number;
-  retries?: number;
+  order: number;
+  groupId?: string;
+  config: ImageMatchConfig | ImageGroupMatchConfig | ClickConfig;
+  onMatch: StepTransition;
+  onMiss: StepTransition;
+  screenshotBeforeMatch: boolean;
 }
 
 export interface StepGroup {
   id: string;
+  taskId: string;
   name: string;
-  steps: Step[];
-  loopCount?: number;
-  loopDelay?: number;
+  loopCount: number;
 }
 
 export interface InterruptHandler {
   id: string;
-  name: string;
+  label: string;
+  templatePath: string;
+  threshold: number;
+  action: 'CLICK_AT_MATCH' | 'CLICK_FIXED' | 'SKIP';
+  fixedCoords?: { x: number; y: number };
   priority: number;
-  condition: ImageMatchConfig;
-  action: Step;
-  cooldown?: number;
 }
 
 export interface TaskSettings {
-  matchInterval?: number;
-  screenshotInterval?: number;
-  maxRetries?: number;
-  timeout?: number;
-  onFail?: 'stop' | 'retry' | 'ignore';
+  screenshotBeforeMatch: boolean;
+  maxRetries: number;
+  globalTimeoutMs: number;
+  stepTimeoutMs: number;
 }
 
 export interface Task {
   id: string;
   name: string;
-  description?: string;
   status: TaskStatus;
-  stepGroups: StepGroup[];
-  interruptHandlers?: InterruptHandler[];
-  settings?: TaskSettings;
-  createdAt: number;
-  updatedAt: number;
+  settings: TaskSettings;
+  interruptHandlers: InterruptHandler[];
+  createdAt: string;
+  updatedAt: string;
 }

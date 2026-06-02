@@ -1,15 +1,10 @@
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+export type LogLevel = 'ERROR' | 'WARN' | 'INFO' | 'DEBUG';
 
-export type LogSource = 'main' | 'renderer' | 'task-engine' | 'matcher' | 'capture';
+export type LogSource = 'TaskEngine' | 'Matcher' | 'Clicker' | 'Network' | 'Python' | 'Storage' | 'App';
 
 export interface LogEntry {
-  id: string;
-  timestamp: number;
+  timestamp: string;
   level: LogLevel;
   source: LogSource;
   message: string;
-  data?: unknown;
-  taskId?: string;
-  taskGroupId?: string;
-  stepId?: string;
 }
