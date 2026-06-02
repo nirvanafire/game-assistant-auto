@@ -44,8 +44,12 @@ export const BrowserPanel: React.FC = () => {
       if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://') && !targetUrl.startsWith('about:')) {
         targetUrl = 'https://' + targetUrl;
       }
-      await api.invoke(IPC_CHANNELS.BROWSER_LOAD_URL, { url: targetUrl });
-      setCurrentUrl(targetUrl);
+      const result = await api.invoke(IPC_CHANNELS.BROWSER_LOAD_URL, { url: targetUrl });
+      if (result?.success) {
+        setCurrentUrl(targetUrl);
+      } else {
+        message.error(result?.error || 'Failed to load URL');
+      }
     } catch {
       message.error('Failed to load URL');
     }

@@ -29,7 +29,7 @@ export function createMainWindow(): BrowserWindow {
     },
   });
   mainWindow.setBrowserView(browserView);
-  const TOOLBAR_HEIGHT = 56;
+  const TOOLBAR_HEIGHT = 64;
   browserView.setBounds(computeBrowserViewBounds(900, TOOLBAR_HEIGHT));
   browserView.webContents.loadURL('about:blank');
 

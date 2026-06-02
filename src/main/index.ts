@@ -79,9 +79,13 @@ app.whenReady().then(() => {
   // Browser view handlers
   registry.handle('browser:load-url', async (_event: any, data: { url: string }) => {
     const view = getBrowserView();
-    if (!view) return { success: false };
-    await view.webContents.loadURL(data.url);
-    return { success: true };
+    if (!view) return { success: false, error: 'BrowserView not initialized' };
+    try {
+      await view.webContents.loadURL(data.url);
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Failed to load URL' };
+    }
   });
 
   registry.handle('browser:get-url', () => {
