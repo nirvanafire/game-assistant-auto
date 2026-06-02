@@ -10,11 +10,12 @@ export function createMainWindow(): BrowserWindow {
     width: 1400,
     height: 900,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, '../preload/preload.mjs'),
       contextIsolation: true,
       nodeIntegration: false,
     },
   });
+  mainWindow.setMenu(null);
 
   // Create BrowserView for embedded browser
   browserView = new BrowserView({
@@ -24,7 +25,8 @@ export function createMainWindow(): BrowserWindow {
     },
   });
   mainWindow.setBrowserView(browserView);
-  browserView.setBounds({ x: 0, y: 0, width: 700, height: 900 });
+  const TOOLBAR_HEIGHT = 48;
+  browserView.setBounds({ x: 0, y: TOOLBAR_HEIGHT, width: 700, height: 900 - TOOLBAR_HEIGHT });
   browserView.webContents.loadURL('about:blank');
 
   // Loading state detection
@@ -40,9 +42,8 @@ export function createMainWindow(): BrowserWindow {
     mainWindow?.webContents.send(IPC_CHANNELS.BROWSER_LOADING_STATE, { loading: false, error: errorDescription });
   });
 
-  if (process.env.ELECTRON_DEV) {
-    mainWindow.loadURL('http://localhost:5173');
-    mainWindow.webContents.openDevTools();
+  if (process.env.NODE_ENV_ELECTRON_VITE === 'development') {
+    mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL || 'http://localhost:5173');
   } else {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   }
