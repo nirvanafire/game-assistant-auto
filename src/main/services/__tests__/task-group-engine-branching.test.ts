@@ -112,4 +112,32 @@ describe('TaskGroupEngine branching and looping', () => {
     await engine.start('g1');
     expect(mockTaskEngine.start).toHaveBeenCalledTimes(3);
   });
+
+  it('null onFailure with SKIP policy continues to next item', async () => {
+    mockStorage.getTaskGroup.mockReturnValue({
+      id: 'g1', name: 'Group', failurePolicy: 'SKIP', retryCount: 0,
+      loopEnabled: false, loopIntervalMs: 0, loopMaxIterations: 0,
+    });
+    mockStorage.listTaskGroupItems.mockReturnValue([
+      { id: 'i1', taskGroupId: 'g1', taskId: 't1', order: 0, onSuccess: null, onFailure: null },
+      { id: 'i2', taskGroupId: 'g1', taskId: 't2', order: 1, onSuccess: null, onFailure: null },
+    ]);
+    mockTaskEngine.getStatus
+      .mockReturnValueOnce('failed')   // t1 fails, SKIP policy -> continue
+      .mockReturnValueOnce('completed'); // t2 succeeds -> ends
+    await engine.start('g1');
+    expect(mockTaskEngine.start).toHaveBeenCalledTimes(2);
+    expect(mockTaskEngine.start).toHaveBeenNthCalledWith(1, 't1');
+    expect(mockTaskEngine.start).toHaveBeenNthCalledWith(2, 't2');
+  });
+
+  it('self-referencing jump target stops after maxJumps', async () => {
+    mockStorage.listTaskGroupItems.mockReturnValue([
+      { id: 'i1', taskGroupId: 'g1', taskId: 't1', order: 0, onSuccess: 'i1', onFailure: null },
+    ]);
+    mockTaskEngine.getStatus.mockReturnValue('completed');
+    await engine.start('g1');
+    // items.length * 2 = 2 max jumps, so task runs twice then stops
+    expect(mockTaskEngine.start).toHaveBeenCalledTimes(2);
+  });
 });

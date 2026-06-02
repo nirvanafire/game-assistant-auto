@@ -73,8 +73,10 @@ export class TaskGroupEngine {
     if (items.length === 0) return;
 
     let currentItem: TaskGroupItem | undefined = items[0];
+    let maxJumps = items.length * 2; // prevent infinite loops from circular jumps
 
-    while (currentItem && this.running.get(taskGroupId) !== false) {
+    while (currentItem && this.running.get(taskGroupId) !== false && maxJumps > 0) {
+      maxJumps--;
       const success = await this.executeTask(currentItem.taskId, failurePolicy, retryCount);
 
       runLog.push({
@@ -89,8 +91,7 @@ export class TaskGroupEngine {
 
       if (jumpTarget === 'END') {
         break;
-      } else if (jumpTarget === undefined) {
-        // No explicit jump target set — fall back to failurePolicy for backward compatibility
+      } else if (jumpTarget == null) {
         if (success) {
           const currentIndex = items.indexOf(currentItem);
           currentItem = items[currentIndex + 1];
@@ -99,16 +100,8 @@ export class TaskGroupEngine {
             const currentIndex = items.indexOf(currentItem);
             currentItem = items[currentIndex + 1];
           } else {
-            break;
+            break; // STOP or RETRY (already retried in executeTask)
           }
-        }
-      } else if (jumpTarget === null) {
-        // Explicit null — success means next-in-order, failure means end group
-        if (success) {
-          const currentIndex = items.indexOf(currentItem);
-          currentItem = items[currentIndex + 1];
-        } else {
-          break;
         }
       } else {
         currentItem = itemMap.get(jumpTarget);
@@ -140,7 +133,10 @@ export class TaskGroupEngine {
 
   private async delay(ms: number, groupId: string): Promise<void> {
     return new Promise((resolve) => {
-      const timer = setTimeout(resolve, ms);
+      const timer = setTimeout(() => {
+        clearInterval(check);
+        resolve();
+      }, ms);
       const check = setInterval(() => {
         if (!this.running.get(groupId)) {
           clearTimeout(timer);
