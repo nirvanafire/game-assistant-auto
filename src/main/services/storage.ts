@@ -134,33 +134,82 @@ export class StorageService {
     this.db.prepare(
       'INSERT INTO task_groups (id, name, failure_policy, retry_count, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
     ).run(id, data.name, data.failurePolicy, retryCount, now, now);
-    return { id, name: data.name, failurePolicy: data.failurePolicy, retryCount, createdAt: now, updatedAt: now };
+    return { id, name: data.name, failurePolicy: data.failurePolicy, retryCount, loopEnabled: false, loopIntervalMs: 0, loopMaxIterations: 0, createdAt: now, updatedAt: now };
   }
 
   getTaskGroup(id: string): TaskGroup | undefined {
     const row = this.db.prepare('SELECT * FROM task_groups WHERE id = ?').get(id) as any;
     if (!row) return undefined;
-    return { id: row.id, name: row.name, failurePolicy: row.failure_policy, retryCount: row.retry_count, createdAt: row.created_at, updatedAt: row.updated_at };
+    return {
+      id: row.id,
+      name: row.name,
+      failurePolicy: row.failure_policy,
+      retryCount: row.retry_count,
+      loopEnabled: row.loop_enabled === 1,
+      loopIntervalMs: row.loop_interval_ms,
+      loopMaxIterations: row.loop_max_iterations,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
   }
 
   listTaskGroups(): TaskGroup[] {
     const rows = this.db.prepare('SELECT * FROM task_groups ORDER BY created_at DESC').all() as any[];
-    return rows.map(row => ({ id: row.id, name: row.name, failurePolicy: row.failure_policy, retryCount: row.retry_count, createdAt: row.created_at, updatedAt: row.updated_at }));
+    return rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      failurePolicy: row.failure_policy,
+      retryCount: row.retry_count,
+      loopEnabled: row.loop_enabled === 1,
+      loopIntervalMs: row.loop_interval_ms,
+      loopMaxIterations: row.loop_max_iterations,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
   }
 
   addTaskGroupItem(taskGroupId: string, taskId: string, order: number): TaskGroupItem {
     const id = uuidv4();
     this.db.prepare('INSERT INTO task_group_items (id, task_group_id, task_id, "order") VALUES (?, ?, ?, ?)').run(id, taskGroupId, taskId, order);
-    return { id, taskGroupId, taskId, order };
+    return { id, taskGroupId, taskId, order, onSuccess: null, onFailure: null };
   }
 
   listTaskGroupItems(taskGroupId: string): TaskGroupItem[] {
     const rows = this.db.prepare('SELECT * FROM task_group_items WHERE task_group_id = ? ORDER BY "order"').all(taskGroupId) as any[];
-    return rows.map(row => ({ id: row.id, taskGroupId: row.task_group_id, taskId: row.task_id, order: row.order }));
+    return rows.map(row => ({
+      id: row.id,
+      taskGroupId: row.task_group_id,
+      taskId: row.task_id,
+      order: row.order,
+      onSuccess: row.on_success,
+      onFailure: row.on_failure,
+    }));
   }
 
   deleteTaskGroupItem(id: string): void {
     this.db.prepare('DELETE FROM task_group_items WHERE id = ?').run(id);
+  }
+
+  updateTaskGroupLoop(id: string, data: { loopEnabled: boolean; loopIntervalMs: number; loopMaxIterations: number }): void {
+    const now = new Date().toISOString();
+    this.db.prepare(
+      'UPDATE task_groups SET loop_enabled = ?, loop_interval_ms = ?, loop_max_iterations = ?, updated_at = ? WHERE id = ?'
+    ).run(data.loopEnabled ? 1 : 0, data.loopIntervalMs, data.loopMaxIterations, now, id);
+  }
+
+  updateTaskGroupItemTarget(itemId: string, onSuccess: string | null, onFailure: string | null): void {
+    this.db.prepare(
+      'UPDATE task_group_items SET on_success = ?, on_failure = ? WHERE id = ?'
+    ).run(onSuccess, onFailure, itemId);
+  }
+
+  reorderTaskGroupItems(taskGroupId: string, itemIds: string[]): void {
+    const runAll = this.db.transaction(() => {
+      for (let i = 0; i < itemIds.length; i++) {
+        this.db.prepare('UPDATE task_group_items SET "order" = ? WHERE id = ? AND task_group_id = ?').run(i, itemIds[i], taskGroupId);
+      }
+    });
+    runAll();
   }
 
   deleteTaskGroup(id: string): void {

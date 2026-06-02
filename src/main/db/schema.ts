@@ -15,6 +15,9 @@ export function createSchema(db: Database.Database): void {
       name TEXT NOT NULL,
       failure_policy TEXT DEFAULT 'STOP' CHECK(failure_policy IN ('STOP','SKIP','RETRY')),
       retry_count INTEGER DEFAULT 0,
+      loop_enabled INTEGER DEFAULT 0,
+      loop_interval_ms INTEGER DEFAULT 0,
+      loop_max_iterations INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
@@ -23,7 +26,9 @@ export function createSchema(db: Database.Database): void {
       id TEXT PRIMARY KEY,
       task_group_id TEXT NOT NULL REFERENCES task_groups(id) ON DELETE CASCADE,
       task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-      "order" INTEGER NOT NULL
+      "order" INTEGER NOT NULL,
+      on_success TEXT DEFAULT NULL,
+      on_failure TEXT DEFAULT NULL
     );
 
     CREATE TABLE IF NOT EXISTS tasks (
@@ -96,6 +101,6 @@ export function createSchema(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_task_group_runs_group ON task_group_runs(task_group_id);
     CREATE INDEX IF NOT EXISTS idx_network_logs_ts ON network_logs(timestamp);
 
-    INSERT OR IGNORE INTO schema_version (version) VALUES (1);
+    INSERT OR IGNORE INTO schema_version (version) VALUES (2);
   `);
 }

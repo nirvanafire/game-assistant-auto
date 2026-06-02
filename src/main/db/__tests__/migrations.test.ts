@@ -13,59 +13,56 @@ describe('migrations', () => {
 
   it('getCurrentVersion returns schema version', () => {
     const version = getCurrentVersion(db);
-    expect(version).toBe(1);
+    expect(version).toBe(2);
   });
 
   it('returns current version when no migrations needed', () => {
     const version = getCurrentVersion(db);
-    expect(version).toBe(1);
+    expect(version).toBe(2);
 
     runMigrations(db);
-    expect(getCurrentVersion(db)).toBe(1);
+    expect(getCurrentVersion(db)).toBe(2);
   });
 
   it('skips already-applied migrations', () => {
     const migrations: Migration[] = [
       {
-        version: 2,
+        version: 3,
         up: (db: Database.Database) => {
           db.exec(`ALTER TABLE tasks ADD COLUMN priority INTEGER DEFAULT 0`);
-          db.prepare('INSERT INTO schema_version (version) VALUES (?)').run(2);
         },
       },
       {
-        version: 3,
+        version: 4,
         up: (db: Database.Database) => {
           db.exec(`ALTER TABLE tasks ADD COLUMN tags JSON DEFAULT '[]'`);
-          db.prepare('INSERT INTO schema_version (version) VALUES (?)').run(3);
         },
       },
     ];
 
     runMigrations(db, migrations);
-    expect(getCurrentVersion(db)).toBe(3);
+    expect(getCurrentVersion(db)).toBe(4);
 
     // Run again - should be a no-op
     runMigrations(db, migrations);
-    expect(getCurrentVersion(db)).toBe(3);
+    expect(getCurrentVersion(db)).toBe(4);
   });
 
-  it('runs migration v2 when available', () => {
+  it('runs additional migrations when available', () => {
     const migrations: Migration[] = [
       {
-        version: 2,
+        version: 3,
         up: (db: Database.Database) => {
           db.exec(`ALTER TABLE tasks ADD COLUMN priority INTEGER DEFAULT 0`);
-          db.prepare('INSERT INTO schema_version (version) VALUES (?)').run(2);
         },
       },
     ];
 
-    expect(getCurrentVersion(db)).toBe(1);
+    expect(getCurrentVersion(db)).toBe(2);
 
     runMigrations(db, migrations);
 
-    expect(getCurrentVersion(db)).toBe(2);
+    expect(getCurrentVersion(db)).toBe(3);
 
     // Verify the column was added
     const columns = db.prepare(`PRAGMA table_info(tasks)`).all() as Array<{ name: string }>;

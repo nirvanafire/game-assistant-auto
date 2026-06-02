@@ -103,4 +103,37 @@ describe('StorageService', () => {
       expect(items).toHaveLength(2);
     });
   });
+
+  describe('loop and jump target operations', () => {
+    it('updateTaskGroupLoop updates loop fields', () => {
+      const group = storage.createTaskGroup({ name: 'G', failurePolicy: 'STOP' });
+      storage.updateTaskGroupLoop(group.id, { loopEnabled: true, loopIntervalMs: 30000, loopMaxIterations: 5 });
+      const updated = storage.getTaskGroup(group.id);
+      expect(updated?.loopEnabled).toBe(true);
+      expect(updated?.loopIntervalMs).toBe(30000);
+      expect(updated?.loopMaxIterations).toBe(5);
+    });
+
+    it('updateTaskGroupItemTarget updates jump targets', () => {
+      const task = storage.createTask({ name: 'T' });
+      const group = storage.createTaskGroup({ name: 'G', failurePolicy: 'STOP' });
+      const item = storage.addTaskGroupItem(group.id, task.id, 0);
+      storage.updateTaskGroupItemTarget(item.id, 'other-item-id', 'END');
+      const items = storage.listTaskGroupItems(group.id);
+      expect(items[0].onSuccess).toBe('other-item-id');
+      expect(items[0].onFailure).toBe('END');
+    });
+
+    it('reorderTaskGroupItems updates order', () => {
+      const t1 = storage.createTask({ name: 'T1' });
+      const t2 = storage.createTask({ name: 'T2' });
+      const group = storage.createTaskGroup({ name: 'G', failurePolicy: 'STOP' });
+      const i1 = storage.addTaskGroupItem(group.id, t1.id, 0);
+      const i2 = storage.addTaskGroupItem(group.id, t2.id, 1);
+      storage.reorderTaskGroupItems(group.id, [i2.id, i1.id]);
+      const items = storage.listTaskGroupItems(group.id);
+      expect(items[0].id).toBe(i2.id);
+      expect(items[1].id).toBe(i1.id);
+    });
+  });
 });
