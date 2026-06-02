@@ -43,7 +43,17 @@ describe('IPC_CHANNELS', () => {
     expect(IPC_CHANNELS.CAPTURE_UPDATED).toBe('capture:updated');
   });
 
-  it('has 49 total channels', () => {
-    expect(Object.keys(IPC_CHANNELS)).toHaveLength(49);
+  it('has browser channels', () => {
+    expect(IPC_CHANNELS.BROWSER_LOAD_URL).toBe('browser:load-url');
+    expect(IPC_CHANNELS.BROWSER_GET_URL).toBe('browser:get-url');
+    expect(IPC_CHANNELS.BROWSER_SET_BOUNDS).toBe('browser:set-bounds');
+    expect(IPC_CHANNELS.BROWSER_GO_BACK).toBe('browser:go-back');
+    expect(IPC_CHANNELS.BROWSER_GO_FORWARD).toBe('browser:go-forward');
+    expect(IPC_CHANNELS.BROWSER_RELOAD).toBe('browser:reload');
+    expect(IPC_CHANNELS.BROWSER_LOADING_STATE).toBe('browser:loading-state');
+  });
+
+  it('has 50 total channels', () => {
+    expect(Object.keys(IPC_CHANNELS)).toHaveLength(50);
   });
 });
