@@ -7,6 +7,7 @@ import { TaskList } from './components/Assistant/TaskList';
 import { TaskEditor } from './components/Assistant/TaskEditor';
 import { TaskGroupList } from './components/Assistant/TaskGroupList';
 import { TaskGroupEditor } from './components/Assistant/TaskGroupEditor';
+import { ExecutionStatus } from './components/Assistant/ExecutionStatus';
 
 type AssistantView = 'tasks' | 'task-editor' | 'groups' | 'group-editor';
 
@@ -72,6 +73,7 @@ export const App: React.FC = () => {
                     Groups
                   </Button>
                 </Space>
+                <ExecutionStatus />
                 {renderAssistantContent()}
               </div>
             ),
