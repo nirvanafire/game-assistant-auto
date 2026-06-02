@@ -65,4 +65,23 @@ export function createTaskGroupIpcHandlers(
     webContents?.send(IPC_CHANNELS.TASK_GROUP_STATUS_CHANGED, { taskGroupId: data.taskGroupId, status: 'stopped' });
     return { success: true };
   });
+
+  registry.handle(IPC_CHANNELS.TASK_GROUP_UPDATE_LOOP, (_event: any, data: { taskGroupId: string; loopEnabled: boolean; loopIntervalMs: number; loopMaxIterations: number }) => {
+    storage.updateTaskGroupLoop(data.taskGroupId, {
+      loopEnabled: data.loopEnabled,
+      loopIntervalMs: data.loopIntervalMs,
+      loopMaxIterations: data.loopMaxIterations,
+    });
+    return { success: true };
+  });
+
+  registry.handle(IPC_CHANNELS.TASK_GROUP_UPDATE_ITEM_TARGET, (_event: any, data: { itemId: string; onSuccess: string | null; onFailure: string | null }) => {
+    storage.updateTaskGroupItemTarget(data.itemId, data.onSuccess, data.onFailure);
+    return { success: true };
+  });
+
+  registry.handle(IPC_CHANNELS.TASK_GROUP_REORDER_ITEMS, (_event: any, data: { taskGroupId: string; itemIds: string[] }) => {
+    storage.reorderTaskGroupItems(data.taskGroupId, data.itemIds);
+    return { success: true };
+  });
 }

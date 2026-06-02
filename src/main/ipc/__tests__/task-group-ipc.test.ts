@@ -114,6 +114,47 @@ describe('TaskGroup IPC Handlers', () => {
     expect(mockStorage.updateTaskGroup).toHaveBeenCalledWith('g1', { name: 'New Name', failurePolicy: 'SKIP' });
   });
 
+  it('registers task-group:update-loop handler', () => {
+    createTaskGroupIpcHandlers(registry, mockStorage, mockTaskGroupEngine);
+    expect(registry.handle).toHaveBeenCalledWith(IPC_CHANNELS.TASK_GROUP_UPDATE_LOOP, expect.any(Function));
+  });
+
+  it('registers task-group:update-item-target handler', () => {
+    createTaskGroupIpcHandlers(registry, mockStorage, mockTaskGroupEngine);
+    expect(registry.handle).toHaveBeenCalledWith(IPC_CHANNELS.TASK_GROUP_UPDATE_ITEM_TARGET, expect.any(Function));
+  });
+
+  it('registers task-group:reorder-items handler', () => {
+    createTaskGroupIpcHandlers(registry, mockStorage, mockTaskGroupEngine);
+    expect(registry.handle).toHaveBeenCalledWith(IPC_CHANNELS.TASK_GROUP_REORDER_ITEMS, expect.any(Function));
+  });
+
+  it('update-loop handler calls storage.updateTaskGroupLoop', () => {
+    mockStorage.updateTaskGroupLoop = vi.fn();
+    createTaskGroupIpcHandlers(registry, mockStorage, mockTaskGroupEngine);
+    const handler = registry.handle.mock.calls.find((c: any) => c[0] === IPC_CHANNELS.TASK_GROUP_UPDATE_LOOP)[1];
+    handler({}, { taskGroupId: 'g1', loopEnabled: true, loopIntervalMs: 30000, loopMaxIterations: 5 });
+    expect(mockStorage.updateTaskGroupLoop).toHaveBeenCalledWith('g1', {
+      loopEnabled: true, loopIntervalMs: 30000, loopMaxIterations: 5,
+    });
+  });
+
+  it('update-item-target handler calls storage.updateTaskGroupItemTarget', () => {
+    mockStorage.updateTaskGroupItemTarget = vi.fn();
+    createTaskGroupIpcHandlers(registry, mockStorage, mockTaskGroupEngine);
+    const handler = registry.handle.mock.calls.find((c: any) => c[0] === IPC_CHANNELS.TASK_GROUP_UPDATE_ITEM_TARGET)[1];
+    handler({}, { itemId: 'i1', onSuccess: 'i2', onFailure: 'END' });
+    expect(mockStorage.updateTaskGroupItemTarget).toHaveBeenCalledWith('i1', 'i2', 'END');
+  });
+
+  it('reorder-items handler calls storage.reorderTaskGroupItems', () => {
+    mockStorage.reorderTaskGroupItems = vi.fn();
+    createTaskGroupIpcHandlers(registry, mockStorage, mockTaskGroupEngine);
+    const handler = registry.handle.mock.calls.find((c: any) => c[0] === IPC_CHANNELS.TASK_GROUP_REORDER_ITEMS)[1];
+    handler({}, { taskGroupId: 'g1', itemIds: ['i2', 'i1'] });
+    expect(mockStorage.reorderTaskGroupItems).toHaveBeenCalledWith('g1', ['i2', 'i1']);
+  });
+
   it('does not register duplicate handlers', () => {
     registry.getHandler = vi.fn().mockReturnValue(() => {});
     createTaskGroupIpcHandlers(registry, mockStorage, mockTaskGroupEngine);
