@@ -5,6 +5,10 @@ import { IPC_CHANNELS } from '@shared/constants';
 let mainWindow: BrowserWindow | null = null;
 let browserView: BrowserView | null = null;
 
+export function computeBrowserViewBounds(windowHeight: number, toolbarHeight: number) {
+  return { x: 0, y: toolbarHeight, width: 700, height: windowHeight - toolbarHeight };
+}
+
 export function createMainWindow(): BrowserWindow {
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -26,7 +30,7 @@ export function createMainWindow(): BrowserWindow {
   });
   mainWindow.setBrowserView(browserView);
   const TOOLBAR_HEIGHT = 48;
-  browserView.setBounds({ x: 0, y: TOOLBAR_HEIGHT, width: 700, height: 900 - TOOLBAR_HEIGHT });
+  browserView.setBounds(computeBrowserViewBounds(900, TOOLBAR_HEIGHT));
   browserView.webContents.loadURL('about:blank');
 
   // Loading state detection
