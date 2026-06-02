@@ -28,7 +28,7 @@ export const TaskEditor: React.FC<TaskEditorProps> = ({ taskId, onClose }) => {
       setSteps(stepsResult?.steps || []);
     } catch (err) {
       console.error('Failed to load task:', err);
-      message.error('Failed to load task data.');
+      message.error('加载任务数据失败。');
     }
   }, [taskId]);
 
@@ -49,7 +49,7 @@ export const TaskEditor: React.FC<TaskEditorProps> = ({ taskId, onClose }) => {
       loadTask();
     } catch (err) {
       console.error('Failed to save step:', err);
-      message.error('Failed to save step.');
+      message.error('保存步骤失败。');
     }
   };
 
@@ -60,7 +60,7 @@ export const TaskEditor: React.FC<TaskEditorProps> = ({ taskId, onClose }) => {
       loadTask();
     } catch (err) {
       console.error('Failed to delete step:', err);
-      message.error('Failed to delete step.');
+      message.error('删除步骤失败。');
     }
   };
 
@@ -68,7 +68,7 @@ export const TaskEditor: React.FC<TaskEditorProps> = ({ taskId, onClose }) => {
 
   return (
     <Space direction="vertical" style={{ width: '100%' }}>
-      <Card title={`Edit: ${task.name}`} extra={<Button onClick={onClose}>Close</Button>}>
+      <Card title={`编辑任务: ${task.name}`} extra={<Button onClick={onClose}>关闭</Button>}>
         <Form layout="vertical" initialValues={task} onFinish={async (values) => {
           const api = (window as any).electronAPI;
           try {
@@ -76,23 +76,23 @@ export const TaskEditor: React.FC<TaskEditorProps> = ({ taskId, onClose }) => {
             loadTask();
           } catch (err) {
             console.error('Failed to update task:', err);
-            message.error('Failed to save task.');
+            message.error('保存任务失败。');
           }
         }}>
-          <Form.Item name="name" label="Name" rules={[{ required: true }]}>
+          <Form.Item name="name" label="名称" rules={[{ required: true }]}>
             <Input />
           </Form.Item>
-          <Button type="primary" htmlType="submit">Save Task</Button>
+          <Button type="primary" htmlType="submit">保存任务</Button>
         </Form>
       </Card>
 
-      <Card title="Steps" extra={<Button icon={<PlusOutlined />} onClick={() => { setEditingStep(null); setShowStepEditor(true); }}>Add Step</Button>}>
+      <Card title="步骤" extra={<Button icon={<PlusOutlined />} onClick={() => { setEditingStep(null); setShowStepEditor(true); }}>添加步骤</Button>}>
         <List
           dataSource={steps}
           renderItem={(step, index) => (
             <List.Item key={step.id} actions={[
               <Button icon={<EditOutlined />} size="small" onClick={() => { setEditingStep(step); setShowStepEditor(true); }} />,
-              <Popconfirm title="Delete?" onConfirm={() => handleDeleteStep(step.id)}>
+              <Popconfirm title="确定删除？" onConfirm={() => handleDeleteStep(step.id)}>
                 <Button icon={<DeleteOutlined />} size="small" danger />
               </Popconfirm>,
             ]}>

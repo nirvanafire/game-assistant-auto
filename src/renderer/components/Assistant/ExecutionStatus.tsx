@@ -45,12 +45,12 @@ export const ExecutionStatus: React.FC = () => {
   };
 
   return (
-    <Card size="small" title="Execution Status" style={{ marginBottom: 8 }}>
+    <Card size="small" title="执行状态" style={{ marginBottom: 8 }}>
       <Space direction="vertical" style={{ width: '100%' }}>
         <Space>
-          <Text>Task:</Text>
+          <Text>任务:</Text>
           <Tag color={statusColor[taskStatus.status]}>{taskStatus.status}</Tag>
-          {taskStatus.currentStepId && <Text type="secondary">Step: {taskStatus.currentStepId}</Text>}
+          {taskStatus.currentStepId && <Text type="secondary">步骤: {taskStatus.currentStepId}</Text>}
         </Space>
         {stepResults.length > 0 && (
           <List
@@ -58,7 +58,7 @@ export const ExecutionStatus: React.FC = () => {
             dataSource={stepResults}
             renderItem={(r) => (
               <List.Item>
-                <Tag color={r.matched ? 'green' : 'red'}>{r.matched ? 'MATCH' : 'MISS'}</Tag>
+                <Tag color={r.matched ? 'green' : 'red'}>{r.matched ? '匹配' : '未匹配'}</Tag>
                 <Text type="secondary">{r.stepId}</Text>
               </List.Item>
             )}

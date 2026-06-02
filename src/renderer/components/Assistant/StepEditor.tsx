@@ -11,15 +11,15 @@ interface StepEditorProps {
 }
 
 const STEP_TYPES: { label: string; value: StepType }[] = [
-  { label: 'Image Match', value: 'IMAGE_MATCH' },
-  { label: 'Image Group', value: 'IMAGE_GROUP' },
-  { label: 'Click', value: 'CLICK' },
+  { label: '图像匹配', value: 'IMAGE_MATCH' },
+  { label: '图像组', value: 'IMAGE_GROUP' },
+  { label: '点击', value: 'CLICK' },
 ];
 
 const TRANSITION_ACTIONS = [
-  { label: '(none)', value: undefined },
-  { label: 'End Task', value: 'END_TASK' },
-  { label: 'End Group Loop', value: 'END_GROUP_LOOP' },
+  { label: '(无)', value: undefined },
+  { label: '结束任务', value: 'END_TASK' },
+  { label: '结束组循环', value: 'END_GROUP_LOOP' },
 ];
 
 export const StepEditor: React.FC<StepEditorProps> = ({ step, taskId, order = 0, onSave, onCancel }) => {
@@ -37,7 +37,7 @@ export const StepEditor: React.FC<StepEditorProps> = ({ step, taskId, order = 0,
   };
 
   return (
-    <Card title={step ? 'Edit Step' : 'Add Step'} size="small">
+    <Card title={step ? '编辑步骤' : '添加步骤'} size="small">
       <Form
         form={form}
         layout="vertical"
@@ -61,10 +61,10 @@ export const StepEditor: React.FC<StepEditorProps> = ({ step, taskId, order = 0,
               }
         }
       >
-        <Form.Item name="type" label="Type" rules={[{ required: true }]}>
+        <Form.Item name="type" label="类型" rules={[{ required: true }]}>
           <Select options={STEP_TYPES} />
         </Form.Item>
-        <Form.Item name="screenshotBeforeMatch" label="Fresh Screenshot" valuePropName="checked">
+        <Form.Item name="screenshotBeforeMatch" label="全新截图" valuePropName="checked">
           <Switch />
         </Form.Item>
 
@@ -77,28 +77,28 @@ export const StepEditor: React.FC<StepEditorProps> = ({ step, taskId, order = 0,
           }}
         </Form.Item>
 
-        <Card type="inner" title="On Match" size="small" style={{ marginTop: 16 }}>
-          <Form.Item name="onMatchAction" label="Action">
+        <Card type="inner" title="匹配时" size="small" style={{ marginTop: 16 }}>
+          <Form.Item name="onMatchAction" label="动作">
             <Select options={TRANSITION_ACTIONS} allowClear />
           </Form.Item>
-          <Form.Item name="onMatchNextStepId" label="Next Step ID">
-            <Input placeholder="optional step ID" />
+          <Form.Item name="onMatchNextStepId" label="下一步骤 ID">
+            <Input placeholder="可选步骤 ID" />
           </Form.Item>
         </Card>
 
-        <Card type="inner" title="On Miss" size="small" style={{ marginTop: 8 }}>
-          <Form.Item name="onMissAction" label="Action">
+        <Card type="inner" title="未匹配时" size="small" style={{ marginTop: 8 }}>
+          <Form.Item name="onMissAction" label="动作">
             <Select options={TRANSITION_ACTIONS} allowClear />
           </Form.Item>
-          <Form.Item name="onMissNextStepId" label="Next Step ID">
-            <Input placeholder="optional step ID" />
+          <Form.Item name="onMissNextStepId" label="下一步骤 ID">
+            <Input placeholder="可选步骤 ID" />
           </Form.Item>
         </Card>
 
         <Space style={{ width: '100%', justifyContent: 'flex-end', marginTop: 16 }}>
-          <Button onClick={onCancel}>Cancel</Button>
+          <Button onClick={onCancel}>取消</Button>
           <Button type="primary" htmlType="submit">
-            Save
+            保存
           </Button>
         </Space>
       </Form>
@@ -108,10 +108,10 @@ export const StepEditor: React.FC<StepEditorProps> = ({ step, taskId, order = 0,
 
 const ImageMatchFields: React.FC = () => (
   <>
-    <Form.Item name="templatePath" label="Template Path" rules={[{ required: true }]}>
+    <Form.Item name="templatePath" label="模板路径" rules={[{ required: true }]}>
       <Input placeholder="/path/to/template.png" />
     </Form.Item>
-    <Form.Item name="threshold" label="Threshold">
+    <Form.Item name="threshold" label="阈值">
       <InputNumber min={0} max={1} step={0.05} style={{ width: '100%' }} />
     </Form.Item>
   </>
@@ -119,11 +119,11 @@ const ImageMatchFields: React.FC = () => (
 
 const ClickFields: React.FC = () => (
   <>
-    <Form.Item name="source" label="Source" rules={[{ required: true }]}>
+    <Form.Item name="source" label="来源" rules={[{ required: true }]}>
       <Select
         options={[
-          { label: 'Fixed', value: 'fixed' },
-          { label: 'From Step', value: 'from_step' },
+          { label: '固定', value: 'fixed' },
+          { label: '从步骤', value: 'from_step' },
         ]}
       />
     </Form.Item>
@@ -133,8 +133,8 @@ const ClickFields: React.FC = () => (
     <Form.Item name={['fixedCoords', 'y']} label="Y">
       <InputNumber style={{ width: '100%' }} />
     </Form.Item>
-    <Form.Item name="stepId" label="Source Step ID">
-      <Input placeholder="used when source is 'from_step'" />
+    <Form.Item name="stepId" label="来源步骤 ID">
+      <Input placeholder="当来源为'从步骤'时使用" />
     </Form.Item>
   </>
 );

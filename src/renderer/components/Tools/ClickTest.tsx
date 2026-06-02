@@ -15,31 +15,31 @@ export const ClickTest: React.FC = () => {
         button: values.button,
         count: values.count,
       });
-      message.success(`Clicked at (${values.x}, ${values.y})`);
+      message.success(`点击 (${values.x}, ${values.y})`);
     } catch (err) {
-      message.error('Click failed.');
+      message.error('点击失败。');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Card title="Click Test" size="small">
+    <Card title="点击测试" size="small">
       <Form layout="inline" onFinish={handleClick} initialValues={{ x: 0, y: 0, button: 'left', count: 1 }}>
-        <Form.Item name="x" label="X" rules={[{ required: true }]}>
+        <Form.Item name="x" label="X坐标" rules={[{ required: true }]}>
           <InputNumber />
         </Form.Item>
-        <Form.Item name="y" label="Y" rules={[{ required: true }]}>
+        <Form.Item name="y" label="Y坐标" rules={[{ required: true }]}>
           <InputNumber />
         </Form.Item>
-        <Form.Item name="button" label="Button">
-          <Select options={[{ label: 'Left', value: 'left' }, { label: 'Right', value: 'right' }]} />
+        <Form.Item name="button" label="按键">
+          <Select options={[{ label: '左键', value: 'left' }, { label: '右键', value: 'right' }]} />
         </Form.Item>
-        <Form.Item name="count" label="Count">
+        <Form.Item name="count" label="次数">
           <InputNumber min={1} max={10} />
         </Form.Item>
         <Form.Item>
-          <Button type="primary" htmlType="submit" loading={loading}>Click</Button>
+          <Button type="primary" htmlType="submit" loading={loading}>点击</Button>
         </Form.Item>
       </Form>
     </Card>

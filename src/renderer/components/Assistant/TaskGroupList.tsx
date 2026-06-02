@@ -22,7 +22,7 @@ export const TaskGroupList: React.FC<TaskGroupListProps> = ({ onEdit }) => {
       const result = await api.invoke(IPC_CHANNELS.TASK_GROUP_LIST);
       setGroups(result?.groups || []);
     } catch (err) {
-      message.error('Failed to load task groups.');
+      message.error('加载任务组失败。');
     }
   };
 
@@ -34,7 +34,7 @@ export const TaskGroupList: React.FC<TaskGroupListProps> = ({ onEdit }) => {
       form.resetFields();
       loadGroups();
     } catch (err) {
-      message.error('Failed to create task group.');
+      message.error('创建任务组失败。');
     }
   };
 
@@ -44,7 +44,7 @@ export const TaskGroupList: React.FC<TaskGroupListProps> = ({ onEdit }) => {
       await api.invoke(IPC_CHANNELS.TASK_GROUP_DELETE, { taskGroupId: groupId });
       loadGroups();
     } catch (err) {
-      message.error('Failed to delete task group.');
+      message.error('删除任务组失败。');
     }
   };
 
@@ -53,7 +53,7 @@ export const TaskGroupList: React.FC<TaskGroupListProps> = ({ onEdit }) => {
     try {
       await api.invoke(IPC_CHANNELS.TASK_GROUP_START, { taskGroupId: groupId });
     } catch (err) {
-      message.error('Failed to start task group.');
+      message.error('启动任务组失败。');
     }
   };
 
@@ -62,13 +62,13 @@ export const TaskGroupList: React.FC<TaskGroupListProps> = ({ onEdit }) => {
     try {
       await api.invoke(IPC_CHANNELS.TASK_GROUP_STOP, { taskGroupId: groupId });
     } catch (err) {
-      message.error('Failed to stop task group.');
+      message.error('停止任务组失败。');
     }
   };
 
   return (
     <>
-      <Button icon={<PlusOutlined />} onClick={() => setShowCreate(true)} style={{ marginBottom: 8 }}>New Group</Button>
+      <Button icon={<PlusOutlined />} onClick={() => setShowCreate(true)} style={{ marginBottom: 8 }}>新建任务组</Button>
       <List
         dataSource={groups}
         renderItem={(group) => (
@@ -76,7 +76,7 @@ export const TaskGroupList: React.FC<TaskGroupListProps> = ({ onEdit }) => {
             <Button icon={<PlayCircleOutlined />} type="primary" size="small" onClick={() => handleStart(group.id)} />,
             <Button icon={<StopOutlined />} size="small" onClick={() => handleStop(group.id)} />,
             <Button icon={<EditOutlined />} size="small" onClick={() => onEdit(group.id)} />,
-            <Popconfirm title="Delete?" onConfirm={() => handleDelete(group.id)}>
+            <Popconfirm title="确定删除？" onConfirm={() => handleDelete(group.id)}>
               <Button icon={<DeleteOutlined />} size="small" danger />
             </Popconfirm>,
           ]}>
@@ -84,11 +84,11 @@ export const TaskGroupList: React.FC<TaskGroupListProps> = ({ onEdit }) => {
           </List.Item>
         )}
       />
-      <Modal title="New Task Group" open={showCreate} onCancel={() => setShowCreate(false)} onOk={() => form.submit()}>
+      <Modal title="新建任务组" open={showCreate} onCancel={() => setShowCreate(false)} onOk={() => form.submit()}>
         <Form form={form} layout="vertical" onFinish={handleCreate}>
-          <Form.Item name="name" label="Name" rules={[{ required: true }]}><Input /></Form.Item>
-          <Form.Item name="failurePolicy" label="Failure Policy" initialValue="STOP">
-            <Select options={[{ label: 'Stop', value: 'STOP' }, { label: 'Skip', value: 'SKIP' }, { label: 'Retry', value: 'RETRY' }]} />
+          <Form.Item name="name" label="名称" rules={[{ required: true }]}><Input /></Form.Item>
+          <Form.Item name="failurePolicy" label="失败策略" initialValue="STOP">
+            <Select options={[{ label: '停止', value: 'STOP' }, { label: '跳过', value: 'SKIP' }, { label: '重试', value: 'RETRY' }]} />
           </Form.Item>
         </Form>
       </Modal>

@@ -29,7 +29,7 @@ export const ImageCompare: React.FC = () => {
 
   const handleMatch = async () => {
     if (!screenshot || !template) {
-      message.warning('Please upload both images first.');
+      message.warning('请先上传两张图片。');
       return;
     }
     setLoading(true);
@@ -42,7 +42,7 @@ export const ImageCompare: React.FC = () => {
       });
       setResult(res);
     } catch (err) {
-      message.error('Match failed.');
+      message.error('匹配失败。');
     } finally {
       setLoading(false);
     }
@@ -60,7 +60,7 @@ export const ImageCompare: React.FC = () => {
             return false;
           }}
         >
-          <Button icon={<UploadOutlined />}>Screenshot</Button>
+          <Button icon={<UploadOutlined />}>上传截图</Button>
         </Upload>
         <Upload
           accept="image/*"
@@ -71,10 +71,10 @@ export const ImageCompare: React.FC = () => {
             return false;
           }}
         >
-          <Button icon={<UploadOutlined />}>Template</Button>
+          <Button icon={<UploadOutlined />}>上传模板</Button>
         </Upload>
         <Button type="primary" onClick={handleMatch} loading={loading} disabled={!screenshot || !template}>
-          Match
+          对比
         </Button>
       </Space>
 
@@ -85,12 +85,12 @@ export const ImageCompare: React.FC = () => {
 
       {result && (
         <Card size="small">
-          <Text>Matched: {result.matched ? 'YES' : 'NO'}</Text>
+          <Text>匹配结果: {result.matched ? '是' : '否'}</Text>
           {result.matched && (
             <Space direction="vertical">
               <Text>X: {result.x}, Y: {result.y}</Text>
-              <Text>Confidence: {result.confidence?.toFixed(3)}</Text>
-              <Text>Scale: {result.scale?.toFixed(2)}</Text>
+              <Text>置信度: {result.confidence?.toFixed(3)}</Text>
+              <Text>缩放比: {result.scale?.toFixed(2)}</Text>
             </Space>
           )}
         </Card>

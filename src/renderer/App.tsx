@@ -52,7 +52,7 @@ export const App: React.FC = () => {
         <Tabs defaultActiveKey="assistant" items={[
           {
             key: 'assistant',
-            label: 'Assistant',
+            label: '辅助',
             children: (
               <div>
                 <Space style={{ marginBottom: 8 }}>
@@ -62,7 +62,7 @@ export const App: React.FC = () => {
                     onClick={() => setView('tasks')}
                     size="small"
                   >
-                    Tasks
+                    任务
                   </Button>
                   <Button
                     icon={<GroupOutlined />}
@@ -70,7 +70,7 @@ export const App: React.FC = () => {
                     onClick={() => setView('groups')}
                     size="small"
                   >
-                    Groups
+                    任务组
                   </Button>
                 </Space>
                 <ExecutionStatus />
@@ -80,19 +80,19 @@ export const App: React.FC = () => {
           },
           {
             key: 'tools',
-            label: 'Tools',
+            label: '工具',
             children: (
               <Tabs
                 defaultActiveKey="log"
                 items={[
-                  { key: 'log', label: 'Log', children: <LogViewer /> },
-                  { key: 'compare', label: 'Image Compare', children: <ImageCompare /> },
-                  { key: 'click', label: 'Click Test', children: <ClickTest /> },
+                  { key: 'log', label: '日志', children: <LogViewer /> },
+                  { key: 'compare', label: '图像对比', children: <ImageCompare /> },
+                  { key: 'click', label: '点击测试', children: <ClickTest /> },
                 ]}
               />
             ),
           },
-          { key: 'network', label: 'Network', children: <NetworkLog /> },
+          { key: 'network', label: '网络', children: <NetworkLog /> },
         ]} />
       </Splitter.Panel>
     </Splitter>
