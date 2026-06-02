@@ -35,12 +35,15 @@ describe('IPC_CHANNELS', () => {
 
   it('has network and capture channels', () => {
     expect(IPC_CHANNELS.NETWORK_REQUEST).toBe('network:request');
+    expect(IPC_CHANNELS.NETWORK_START).toBe('network:start');
+    expect(IPC_CHANNELS.NETWORK_STOP).toBe('network:stop');
+    expect(IPC_CHANNELS.NETWORK_GET_LOGS).toBe('network:get-logs');
     expect(IPC_CHANNELS.CAPTURE_SCREENSHOT).toBe('capture:screenshot');
     expect(IPC_CHANNELS.CAPTURE_CLICK).toBe('capture:click');
     expect(IPC_CHANNELS.CAPTURE_UPDATED).toBe('capture:updated');
   });
 
-  it('has 26 total channels', () => {
-    expect(Object.keys(IPC_CHANNELS)).toHaveLength(26);
+  it('has 35 total channels', () => {
+    expect(Object.keys(IPC_CHANNELS)).toHaveLength(35);
   });
 });

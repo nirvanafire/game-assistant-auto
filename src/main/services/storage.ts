@@ -95,6 +95,28 @@ export class StorageService {
     }));
   }
 
+  updateStep(id: string, data: Partial<Omit<Step, 'id'>>): void {
+    const row = this.db.prepare('SELECT * FROM steps WHERE id = ?').get(id) as any;
+    if (!row) return;
+    const merged = {
+      taskId: data.taskId ?? row.task_id,
+      type: data.type ?? row.type,
+      order: data.order ?? row.order,
+      groupId: data.groupId ?? row.group_id,
+      config: data.config ?? JSON.parse(row.config),
+      onMatch: data.onMatch ?? JSON.parse(row.on_match),
+      onMiss: data.onMiss ?? JSON.parse(row.on_miss),
+      screenshotBeforeMatch: data.screenshotBeforeMatch ?? (row.screenshot_before_match === 1),
+    };
+    this.db.prepare(
+      'UPDATE steps SET task_id = ?, type = ?, "order" = ?, group_id = ?, config = ?, on_match = ?, on_miss = ?, screenshot_before_match = ? WHERE id = ?'
+    ).run(merged.taskId, merged.type, merged.order, merged.groupId ?? null, JSON.stringify(merged.config), JSON.stringify(merged.onMatch), JSON.stringify(merged.onMiss), merged.screenshotBeforeMatch ? 1 : 0, id);
+  }
+
+  deleteStep(id: string): void {
+    this.db.prepare('DELETE FROM steps WHERE id = ?').run(id);
+  }
+
   createTaskGroup(data: { name: string; failurePolicy: FailurePolicy; retryCount?: number }): TaskGroup {
     const id = uuidv4();
     const now = new Date().toISOString();
