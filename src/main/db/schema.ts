@@ -83,6 +83,7 @@ export function createSchema(db: Database.Database): void {
       request_body TEXT,
       response_headers JSON,
       response_body TEXT,
+      response_body_path TEXT,
       duration_ms INTEGER,
       resource_type TEXT,
       size INTEGER
