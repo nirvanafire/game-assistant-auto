@@ -1,8 +1,9 @@
-import type { Step, StepGroup, TaskSettings } from '@shared/types/task';
+import type { Step, StepGroup, Task, TaskSettings } from '@shared/types/task';
 import type { MatchResult } from '@shared/types/match-result';
 import type { StorageService } from './storage';
 import type { CaptureService } from './capture';
 import type { MatcherClient } from './matcher-client';
+import type { ClickerService } from './clicker';
 import type { Logger } from './logger';
 
 export type TaskRunStatus = 'idle' | 'running' | 'paused' | 'completed' | 'failed' | 'stopped';
@@ -19,12 +20,20 @@ export class TaskEngine {
   private storage: StorageService;
   private capture: CaptureService;
   private matcher: MatcherClient;
+  private clicker: ClickerService;
   private logger?: Logger;
 
-  constructor(storage: StorageService, capture: CaptureService, matcher: MatcherClient, logger?: Logger) {
+  constructor(
+    storage: StorageService,
+    capture: CaptureService,
+    matcher: MatcherClient,
+    clicker: ClickerService,
+    logger?: Logger,
+  ) {
     this.storage = storage;
     this.capture = capture;
     this.matcher = matcher;
+    this.clicker = clicker;
     this.logger = logger;
   }
 
@@ -53,7 +62,7 @@ export class TaskEngine {
     };
 
     try {
-      await this.executeSteps(taskId, steps, task.settings, ctx, abort.signal);
+      await this.executeSteps(task, steps, ctx, abort.signal);
     } catch (err: any) {
       if (err.message === 'STOPPED') {
         this.statuses.set(taskId, 'stopped');
@@ -71,13 +80,46 @@ export class TaskEngine {
     this.abortControllers.get(taskId)?.abort();
   }
 
-  private async executeSteps(
-    taskId: string,
-    steps: Step[],
-    settings: TaskSettings,
+  private async checkInterrupts(
+    task: Task,
     ctx: StepContext,
     signal: AbortSignal,
   ): Promise<void> {
+    if (!task.interruptHandlers || task.interruptHandlers.length === 0) return;
+    if (!ctx.lastScreenshot) return;
+
+    const sorted = [...task.interruptHandlers].sort((a, b) => a.priority - b.priority);
+
+    for (const handler of sorted) {
+      if (signal.aborted) throw new Error('STOPPED');
+
+      const result = await this.matcher.match({
+        screenshot: ctx.lastScreenshot,
+        template: handler.templatePath,
+        threshold: handler.threshold,
+        scaleRange: [0.5, 2.0],
+      });
+
+      if (result.matched) {
+        if (handler.action === 'CLICK_AT_MATCH' && result.x != null && result.y != null) {
+          await this.clicker.click(result.x, result.y);
+          ctx.lastScreenshot = await this.capture.capture();
+        } else if (handler.action === 'CLICK_FIXED' && handler.fixedCoords) {
+          await this.clicker.click(handler.fixedCoords.x, handler.fixedCoords.y);
+          ctx.lastScreenshot = await this.capture.capture();
+        }
+      }
+    }
+  }
+
+  private async executeSteps(
+    task: Task,
+    steps: Step[],
+    ctx: StepContext,
+    signal: AbortSignal,
+  ): Promise<void> {
+    const taskId = task.id;
+    const settings = task.settings;
     const stepGroups = this.storage.listStepGroups(taskId);
     const startTime = Date.now();
     let stepIndex = 0;
@@ -117,6 +159,8 @@ export class TaskEngine {
               ctx.lastScreenshot = await this.capture.capture();
             }
 
+            await this.checkInterrupts(task, ctx, signal);
+
             const result = await this.executeStepWithTimeout(groupStep, ctx, settings.stepTimeoutMs, signal);
             const transition = result ? groupStep.onMatch : groupStep.onMiss;
 
@@ -142,6 +186,8 @@ export class TaskEngine {
         if (currentStep.screenshotBeforeMatch || !ctx.lastScreenshot) {
           ctx.lastScreenshot = await this.capture.capture();
         }
+
+        await this.checkInterrupts(task, ctx, signal);
 
         const result = await this.executeStepWithTimeout(currentStep, ctx, settings.stepTimeoutMs, signal);
         const transition = result ? currentStep.onMatch : currentStep.onMiss;

@@ -11,6 +11,7 @@ import { createTaskGroupIpcHandlers } from './ipc/task-group';
 import { TaskEngine } from './services/task-engine';
 import { TaskGroupEngine } from './services/task-group-engine';
 import { CaptureService } from './services/capture';
+import { ClickerService } from './services/clicker';
 import { MatcherClient } from './services/matcher-client';
 import Database from 'better-sqlite3';
 import path from 'path';
@@ -38,8 +39,9 @@ app.whenReady().then(() => {
 
   // Services that need webContents
   const capture = new CaptureService(win.webContents);
+  const clicker = new ClickerService(win.webContents);
   const matcher = new MatcherClient('http://127.0.0.1:5000');
-  const taskEngine = new TaskEngine(storage, capture, matcher, logger);
+  const taskEngine = new TaskEngine(storage, capture, matcher, clicker, logger);
   const taskGroupEngine = new TaskGroupEngine(storage, taskEngine);
 
   // IPC handlers

@@ -6,6 +6,7 @@ describe('TaskEngine', () => {
   let mockStorage: any;
   let mockCapture: any;
   let mockMatcher: any;
+  let mockClicker: any;
 
   beforeEach(() => {
     mockStorage = {
@@ -22,7 +23,8 @@ describe('TaskEngine', () => {
     };
     mockCapture = { capture: vi.fn().mockResolvedValue('data:image/png;base64,abc'), captureRegion: vi.fn() };
     mockMatcher = { match: vi.fn().mockResolvedValue({ matched: true, x: 100, y: 200, confidence: 0.95, scale: 1.0 }), matchGroup: vi.fn(), health: vi.fn() };
-    engine = new TaskEngine(mockStorage, mockCapture, mockMatcher);
+    mockClicker = { click: vi.fn(), clickAt: vi.fn() };
+    engine = new TaskEngine(mockStorage, mockCapture, mockMatcher, mockClicker);
   });
 
   it('starts with idle status', () => {
@@ -82,5 +84,40 @@ describe('TaskEngine', () => {
     await engine.start('t1');
     expect(mockMatcher.match).toHaveBeenCalledTimes(1);
     expect(engine.getStatus('t1')).toBe('completed');
+  });
+
+  it('checks interrupt handlers before each step', async () => {
+    mockStorage.getTask.mockReturnValue({
+      id: 't1', name: 'Test', status: 'idle',
+      settings: { screenshotBeforeMatch: false, maxRetries: 3, globalTimeoutMs: 60000, stepTimeoutMs: 10000 },
+      interruptHandlers: [{
+        id: 'ih1', label: 'Close Popup', templatePath: '/popup.png',
+        threshold: 0.9, action: 'CLICK_AT_MATCH', priority: 1,
+      }],
+    });
+    mockMatcher.match
+      .mockResolvedValueOnce({ matched: true, x: 50, y: 50, confidence: 0.95, scale: 1.0 })
+      .mockResolvedValueOnce({ matched: true, x: 100, y: 200, confidence: 0.95, scale: 1.0 });
+
+    await engine.start('t1');
+    expect(mockMatcher.match).toHaveBeenCalledTimes(2);
+    expect(mockClicker.click).toHaveBeenCalledWith(50, 50);
+  });
+
+  it('handles CLICK_FIXED interrupt', async () => {
+    mockStorage.getTask.mockReturnValue({
+      id: 't1', name: 'Test', status: 'idle',
+      settings: { screenshotBeforeMatch: false, maxRetries: 3, globalTimeoutMs: 60000, stepTimeoutMs: 10000 },
+      interruptHandlers: [{
+        id: 'ih1', label: 'Close Ad', templatePath: '/ad.png',
+        threshold: 0.9, action: 'CLICK_FIXED', fixedCoords: { x: 10, y: 10 }, priority: 1,
+      }],
+    });
+    mockMatcher.match
+      .mockResolvedValueOnce({ matched: true, x: 50, y: 50, confidence: 0.95, scale: 1.0 })
+      .mockResolvedValueOnce({ matched: true, x: 100, y: 200, confidence: 0.95, scale: 1.0 });
+
+    await engine.start('t1');
+    expect(mockClicker.click).toHaveBeenCalledWith(10, 10);
   });
 });
