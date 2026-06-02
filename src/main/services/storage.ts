@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 import { v4 as uuidv4 } from 'uuid';
-import type { Task, Step, TaskSettings, InterruptHandler } from '@shared/types/task';
+import type { Task, Step, StepGroup, TaskSettings, InterruptHandler } from '@shared/types/task';
 import type { TaskGroup, TaskGroupItem, FailurePolicy } from '@shared/types/task-group';
 
 export class StorageService {
@@ -95,6 +95,16 @@ export class StorageService {
     }));
   }
 
+  listStepGroups(taskId: string): StepGroup[] {
+    const rows = this.db.prepare('SELECT * FROM step_groups WHERE task_id = ?').all(taskId) as any[];
+    return rows.map(row => ({
+      id: row.id,
+      taskId: row.task_id,
+      name: row.name,
+      loopCount: row.loop_count,
+    }));
+  }
+
   updateStep(id: string, data: Partial<Omit<Step, 'id'>>): void {
     const row = this.db.prepare('SELECT * FROM steps WHERE id = ?').get(id) as any;
     if (!row) return;
@@ -155,5 +165,26 @@ export class StorageService {
 
   deleteTaskGroup(id: string): void {
     this.db.prepare('DELETE FROM task_groups WHERE id = ?').run(id);
+  }
+
+  updateTaskGroup(id: string, data: Partial<{ name: string; failurePolicy: FailurePolicy; retryCount: number }>): void {
+    const now = new Date().toISOString();
+    const updates: Array<[string, any[]]> = [];
+    if (data.name !== undefined) {
+      updates.push(['UPDATE task_groups SET name = ?, updated_at = ? WHERE id = ?', [data.name, now, id]]);
+    }
+    if (data.failurePolicy !== undefined) {
+      updates.push(['UPDATE task_groups SET failure_policy = ?, updated_at = ? WHERE id = ?', [data.failurePolicy, now, id]]);
+    }
+    if (data.retryCount !== undefined) {
+      updates.push(['UPDATE task_groups SET retry_count = ?, updated_at = ? WHERE id = ?', [data.retryCount, now, id]]);
+    }
+    if (updates.length === 0) return;
+    const runAll = this.db.transaction(() => {
+      for (const [sql, params] of updates) {
+        this.db.prepare(sql).run(...params);
+      }
+    });
+    runAll();
   }
 }

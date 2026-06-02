@@ -1,4 +1,4 @@
-import type { Step, TaskSettings } from '@shared/types/task';
+import type { Step, StepGroup, TaskSettings } from '@shared/types/task';
 import type { MatchResult } from '@shared/types/match-result';
 import type { StorageService } from './storage';
 import type { CaptureService } from './capture';
@@ -78,45 +78,92 @@ export class TaskEngine {
     ctx: StepContext,
     signal: AbortSignal,
   ): Promise<void> {
-    const stepsById = new Map(steps.map(s => [s.id, s]));
-    let currentStep = steps[0];
+    const stepGroups = this.storage.listStepGroups(taskId);
     const startTime = Date.now();
+    let stepIndex = 0;
 
-    while (currentStep) {
+    while (stepIndex < steps.length) {
       if (signal.aborted) throw new Error('STOPPED');
       if (Date.now() - startTime > settings.globalTimeoutMs) {
         this.statuses.set(taskId, 'failed');
         return;
       }
 
+      const currentStep = steps[stepIndex];
       ctx.currentStepId = currentStep.id;
 
-      // Screenshot
-      if (currentStep.screenshotBeforeMatch || !ctx.lastScreenshot) {
-        ctx.lastScreenshot = await this.capture.capture();
-      }
+      const group = currentStep.groupId
+        ? stepGroups.find(g => g.id === currentStep.groupId)
+        : null;
 
-      // Execute step with timeout
-      const result = await this.executeStepWithTimeout(currentStep, ctx, settings.stepTimeoutMs, signal);
-      const transition = result ? currentStep.onMatch : currentStep.onMiss;
+      if (group) {
+        const groupSteps = steps.filter(s => s.groupId === group.id);
+        const loopCount = group.loopCount === 0 ? Infinity : group.loopCount;
+        let broken = false;
 
-      if (transition.action === 'END_TASK') {
-        this.statuses.set(taskId, 'completed');
-        return;
-      }
+        for (let loop = 0; loop < loopCount; loop++) {
+          if (signal.aborted) throw new Error('STOPPED');
 
-      if (transition.nextStepId) {
-        currentStep = stepsById.get(transition.nextStepId)!;
-      } else {
-        const idx = steps.indexOf(currentStep);
-        if (idx < steps.length - 1) {
-          currentStep = steps[idx + 1];
-        } else {
+          for (const groupStep of groupSteps) {
+            if (signal.aborted) throw new Error('STOPPED');
+            if (Date.now() - startTime > settings.globalTimeoutMs) {
+              this.statuses.set(taskId, 'failed');
+              return;
+            }
+
+            ctx.currentStepId = groupStep.id;
+
+            if (groupStep.screenshotBeforeMatch || !ctx.lastScreenshot) {
+              ctx.lastScreenshot = await this.capture.capture();
+            }
+
+            const result = await this.executeStepWithTimeout(groupStep, ctx, settings.stepTimeoutMs, signal);
+            const transition = result ? groupStep.onMatch : groupStep.onMiss;
+
+            if (transition.action === 'END_TASK') {
+              this.statuses.set(taskId, 'completed');
+              return;
+            }
+            if (transition.action === 'END_GROUP_LOOP') {
+              broken = true;
+              break;
+            }
+          }
+
+          if (broken) break;
+        }
+
+        stepIndex = steps.findIndex((s, i) => i >= stepIndex && s.groupId !== group.id);
+        if (stepIndex === -1) {
           this.statuses.set(taskId, 'completed');
           return;
         }
+      } else {
+        if (currentStep.screenshotBeforeMatch || !ctx.lastScreenshot) {
+          ctx.lastScreenshot = await this.capture.capture();
+        }
+
+        const result = await this.executeStepWithTimeout(currentStep, ctx, settings.stepTimeoutMs, signal);
+        const transition = result ? currentStep.onMatch : currentStep.onMiss;
+
+        if (transition.action === 'END_TASK') {
+          this.statuses.set(taskId, 'completed');
+          return;
+        }
+
+        if (transition.nextStepId) {
+          stepIndex = steps.findIndex(s => s.id === transition.nextStepId);
+          if (stepIndex === -1) {
+            this.statuses.set(taskId, 'completed');
+            return;
+          }
+        } else {
+          stepIndex++;
+        }
       }
     }
+
+    this.statuses.set(taskId, 'completed');
   }
 
   private async executeStepWithTimeout(

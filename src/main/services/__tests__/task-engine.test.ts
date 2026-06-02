@@ -17,6 +17,7 @@ describe('TaskEngine', () => {
       listSteps: vi.fn().mockReturnValue([
         { id: 's1', taskId: 't1', type: 'IMAGE_MATCH', order: 1, config: { templatePath: '/img.png', threshold: 0.8, delayMs: 0, retryCount: 0, retryIntervalMs: 0, scaleRange: [0.5, 2] }, onMatch: { action: 'END_TASK' }, onMiss: { action: 'END_TASK' }, screenshotBeforeMatch: true },
       ]),
+      listStepGroups: vi.fn().mockReturnValue([]),
       updateTask: vi.fn(),
     };
     mockCapture = { capture: vi.fn().mockResolvedValue('data:image/png;base64,abc'), captureRegion: vi.fn() };
@@ -55,6 +56,31 @@ describe('TaskEngine', () => {
     ]);
     await engine.start('t1');
     expect(mockMatcher.match).toHaveBeenCalledTimes(2);
+    expect(engine.getStatus('t1')).toBe('completed');
+  });
+
+  it('executes step group with loop count', async () => {
+    mockStorage.listSteps.mockReturnValue([
+      { id: 's1', taskId: 't1', type: 'IMAGE_MATCH', order: 1, groupId: 'sg1', config: { templatePath: '/img.png', threshold: 0.8, delayMs: 0, retryCount: 0, retryIntervalMs: 0, scaleRange: [0.5, 2] }, onMatch: {}, onMiss: { action: 'END_TASK' }, screenshotBeforeMatch: true },
+      { id: 's2', taskId: 't1', type: 'IMAGE_MATCH', order: 2, groupId: 'sg1', config: { templatePath: '/img2.png', threshold: 0.8, delayMs: 0, retryCount: 0, retryIntervalMs: 0, scaleRange: [0.5, 2] }, onMatch: {}, onMiss: { action: 'END_TASK' }, screenshotBeforeMatch: true },
+      { id: 's3', taskId: 't1', type: 'IMAGE_MATCH', order: 3, groupId: null, config: { templatePath: '/img3.png', threshold: 0.8, delayMs: 0, retryCount: 0, retryIntervalMs: 0, scaleRange: [0.5, 2] }, onMatch: { action: 'END_TASK' }, onMiss: { action: 'END_TASK' }, screenshotBeforeMatch: true },
+    ]);
+    mockStorage.listStepGroups.mockReturnValue([
+      { id: 'sg1', taskId: 't1', name: 'Loop Group', loopCount: 2 },
+    ]);
+    await engine.start('t1');
+    expect(mockMatcher.match).toHaveBeenCalledTimes(5);
+  });
+
+  it('stops infinite loop on END_GROUP_LOOP', async () => {
+    mockStorage.listSteps.mockReturnValue([
+      { id: 's1', taskId: 't1', type: 'IMAGE_MATCH', order: 1, groupId: 'sg1', config: { templatePath: '/img.png', threshold: 0.8, delayMs: 0, retryCount: 0, retryIntervalMs: 0, scaleRange: [0.5, 2] }, onMatch: { action: 'END_GROUP_LOOP' }, onMiss: { action: 'END_TASK' }, screenshotBeforeMatch: true },
+    ]);
+    mockStorage.listStepGroups.mockReturnValue([
+      { id: 'sg1', taskId: 't1', name: 'Infinite Loop', loopCount: 0 },
+    ]);
+    await engine.start('t1');
+    expect(mockMatcher.match).toHaveBeenCalledTimes(1);
     expect(engine.getStatus('t1')).toBe('completed');
   });
 });
