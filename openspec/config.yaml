@@ -1,0 +1,16 @@
+schema: spec-driven
+
+context: |
+  Tech stack: Electron + TypeScript, React, Python + OpenCV
+  Packaging: electron-builder, PyInstaller
+  CI/CD: GitHub Actions
+  Domain: Web game automation via image matching and simulated clicks
+  Platform: Windows (exe), macOS (dmg)
+  All code comments and commit messages in English only
+
+rules:
+  proposal:
+    - Always include a "Non-goals" section
+  tasks:
+    - Break tasks into chunks of max 2 hours
+    - Each task should be independently verifiable

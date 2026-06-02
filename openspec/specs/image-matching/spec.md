@@ -1,0 +1,85 @@
+# Spec: Image Matching
+
+## Overview
+
+Template matching service that locates a small template image within a browser screenshot. Handles window resize and OS DPI scaling via multi-scale matching.
+
+## Requirements
+
+### Functional
+
+1. Match a single template image against a screenshot at multiple scales
+2. Match a group of templates with ALL/ANY logic
+3. Return match coordinates (center of matched region), confidence score, and matched scale
+4. Support configurable confidence threshold (0-1)
+5. Support configurable scale range (default 0.5x to 2.0x)
+6. Support optional region-of-interest (ROI) to limit search area
+7. Coarse-to-fine matching: scan at 0.25 increments, refine at 0.05 increments around best match
+8. Scale cache: remember successful scale per session for faster subsequent matching
+
+### Non-functional
+
+1. Single match latency < 100ms (1920x1080 screenshot, 100x100 template)
+2. Service must handle concurrent requests (multiple tasks running)
+3. Graceful degradation: return `{ matched: false }` on failure, never crash
+4. Health check endpoint for monitoring
+
+## API
+
+### POST /match
+
+```
+Request:
+  screenshot: base64 PNG
+  template: base64 PNG
+  threshold: float (0-1, default 0.8)
+  scale_range: [float, float] (default [0.5, 2.0])
+  region?: { x: int, y: int, width: int, height: int }
+
+Response:
+  { matched: bool, x: int, y: int, confidence: float, scale: float }
+```
+
+### POST /match-group
+
+```
+Request:
+  screenshot: base64 PNG
+  templates: [{ label: string, image: base64, threshold: float }]
+  logic: "ALL" | "ANY"
+  scale_range: [float, float]
+
+Response:
+  { results: [{ label: string, matched: bool, x: int, y: int, confidence: float, scale: float }] }
+```
+
+### GET /health
+
+```
+Response:
+  { status: "ok", version: string, opencv_version: string }
+```
+
+## Algorithm
+
+1. Convert screenshot and template to grayscale
+2. For each scale in coarse range (0.25 step):
+   a. Resize template by scale factor
+   b. Skip if resized template larger than screenshot
+   c. Run cv2.matchTemplate with TM_CCOEFF_NORMED
+   d. Track best match above threshold
+3. If coarse match found, refine with 0.05 step around best scale
+4. Convert top-left coordinates to center coordinates
+5. Return result
+
+## Scale Calculation
+
+- Base scale = browser.devicePixelFactor / templateCaptureDPI
+- Scan range centered on base scale when known
+- Fallback to [0.5, 2.0] when DPI info unavailable
+
+## Error Handling
+
+- Invalid base64 → 400 Bad Request
+- Template larger than screenshot at all scales → `{ matched: false }`
+- Internal error → 500 with error message, service stays alive

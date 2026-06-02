@@ -1,0 +1,7 @@
+node_modules/
+dist/
+data/
+templates/
+*.db
+*.log
+.DS_Store
