@@ -45,7 +45,7 @@ export const App: React.FC = () => {
 
   return (
     <Splitter style={{ height: '100vh' }}>
-      <Splitter.Panel defaultSize="50%" min="30%">
+      <Splitter.Panel defaultSize="70%" min="30%">
         <BrowserPanel />
       </Splitter.Panel>
       <Splitter.Panel>

@@ -1,78 +1,57 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Input, Space, Button, Spin, message } from 'antd';
 import { ReloadOutlined, ArrowLeftOutlined, ArrowRightOutlined } from '@ant-design/icons';
-import { IPC_CHANNELS } from '@shared/constants';
 
 export const BrowserPanel: React.FC = () => {
   const [url, setUrl] = useState('');
-  const [currentUrl, setCurrentUrl] = useState('');
   const [loading, setLoading] = useState(false);
+  const webviewRef = useRef<Electron.WebviewTag>(null);
 
   useEffect(() => {
-    loadCurrentUrl();
-  }, []);
+    const wv = webviewRef.current;
+    if (!wv) return;
 
-  useEffect(() => {
-    const api = (window as any).electronAPI;
-    if (!api) return;
+    const onStartLoading = () => setLoading(true);
+    const onStopLoading = () => {
+      setLoading(false);
+      setUrl(wv.getURL());
+    };
+    const onFailLoad = (e: any) => {
+      setLoading(false);
+      message.error(`Page load failed: ${e.errorDescription}`);
+    };
 
-    const unsubscribe = api.on(IPC_CHANNELS.BROWSER_LOADING_STATE, (_event: any, data: { loading: boolean; error?: string }) => {
-      setLoading(data.loading);
-      if (data.error) {
-        message.error(`Page load failed: ${data.error}`);
-      }
-    });
+    wv.addEventListener('did-start-loading', onStartLoading);
+    wv.addEventListener('did-stop-loading', onStopLoading);
+    wv.addEventListener('did-fail-load', onFailLoad);
 
     return () => {
-      if (typeof unsubscribe === 'function') unsubscribe();
+      wv.removeEventListener('did-start-loading', onStartLoading);
+      wv.removeEventListener('did-stop-loading', onStopLoading);
+      wv.removeEventListener('did-fail-load', onFailLoad);
     };
   }, []);
 
-  const loadCurrentUrl = async () => {
-    const api = (window as any).electronAPI;
-    if (!api) return;
-    const result = await api.invoke(IPC_CHANNELS.BROWSER_GET_URL);
-    setCurrentUrl(result?.url || '');
-    setUrl(result?.url || '');
-  };
-
-  const handleNavigate = async () => {
-    const api = (window as any).electronAPI;
-    if (!api) return;
-    try {
-      let targetUrl = url;
-      if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://') && !targetUrl.startsWith('about:')) {
-        targetUrl = 'https://' + targetUrl;
-      }
-      const result = await api.invoke(IPC_CHANNELS.BROWSER_LOAD_URL, { url: targetUrl });
-      if (result?.success) {
-        setCurrentUrl(targetUrl);
-      } else {
-        message.error(result?.error || 'Failed to load URL');
-      }
-    } catch {
-      message.error('Failed to load URL');
+  const handleNavigate = () => {
+    const wv = webviewRef.current;
+    if (!wv) return;
+    let targetUrl = url;
+    if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://') && !targetUrl.startsWith('about:')) {
+      targetUrl = 'https://' + targetUrl;
     }
+    wv.loadURL(targetUrl);
   };
 
-  const handleRefresh = async () => {
-    const api = (window as any).electronAPI;
-    if (!api) return;
-    await api.invoke(IPC_CHANNELS.BROWSER_RELOAD);
+  const handleRefresh = () => {
+    webviewRef.current?.reload();
   };
 
-  const handleBack = async () => {
-    const api = (window as any).electronAPI;
-    if (!api) return;
-    await api.invoke(IPC_CHANNELS.BROWSER_GO_BACK);
-    setTimeout(loadCurrentUrl, 100);
+  const handleBack = () => {
+    webviewRef.current?.goBack();
   };
 
-  const handleForward = async () => {
-    const api = (window as any).electronAPI;
-    if (!api) return;
-    await api.invoke(IPC_CHANNELS.BROWSER_GO_FORWARD);
-    setTimeout(loadCurrentUrl, 100);
+  const handleForward = () => {
+    webviewRef.current?.goForward();
   };
 
   return (
@@ -93,6 +72,12 @@ export const BrowserPanel: React.FC = () => {
         </Spin>
         <Button type="primary" size="small" onClick={handleNavigate}>Go</Button>
       </Space>
+      {/* @ts-expect-error webview tag is Electron-specific */}
+      <webview
+        ref={webviewRef}
+        src="about:blank"
+        style={{ flex: 1 }}
+      />
     </div>
   );
 };

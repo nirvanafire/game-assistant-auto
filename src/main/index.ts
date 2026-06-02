@@ -1,5 +1,5 @@
 import { app } from 'electron';
-import { createMainWindow, getBrowserView, getMainWindow } from './window';
+import { createMainWindow, getMainWindow } from './window';
 import { createSchema } from './db/schema';
 import { runMigrations } from './db/migrations';
 import { StorageService } from './services/storage';
@@ -76,47 +76,6 @@ app.whenReady().then(() => {
     return result;
   });
 
-  // Browser view handlers
-  registry.handle('browser:load-url', async (_event: any, data: { url: string }) => {
-    const view = getBrowserView();
-    if (!view) return { success: false, error: 'BrowserView not initialized' };
-    try {
-      await view.webContents.loadURL(data.url);
-      return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err?.message || 'Failed to load URL' };
-    }
-  });
-
-  registry.handle('browser:get-url', () => {
-    const view = getBrowserView();
-    return { url: view?.webContents.getURL() || '' };
-  });
-
-  registry.handle('browser:set-bounds', (_event: any, data: { x: number; y: number; width: number; height: number }) => {
-    const view = getBrowserView();
-    if (!view) return { success: false };
-    view.setBounds(data);
-    return { success: true };
-  });
-
-  registry.handle('browser:go-back', () => {
-    const view = getBrowserView();
-    if (view?.webContents.canGoBack()) view.webContents.goBack();
-    return { success: true };
-  });
-
-  registry.handle('browser:go-forward', () => {
-    const view = getBrowserView();
-    if (view?.webContents.canGoForward()) view.webContents.goForward();
-    return { success: true };
-  });
-
-  registry.handle('browser:reload', () => {
-    const view = getBrowserView();
-    view?.webContents.reload();
-    return { success: true };
-  });
 });
 
 app.on('window-all-closed', () => {
