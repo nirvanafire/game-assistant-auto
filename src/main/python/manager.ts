@@ -1,6 +1,7 @@
 import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
 import { findAvailablePort } from './port';
+import type { Logger } from '../services/logger';
 
 export type ManagerStatus = 'idle' | 'starting' | 'running' | 'stopped' | 'error';
 
@@ -11,9 +12,11 @@ export class PythonManager {
   private servicePath: string;
   private restartCount: number = 0;
   private maxRestarts: number = 3;
+  private logger?: Logger;
 
-  constructor(servicePath: string) {
+  constructor(servicePath: string, logger?: Logger) {
     this.servicePath = servicePath;
+    this.logger = logger;
   }
 
   getStatus(): ManagerStatus {
@@ -33,6 +36,7 @@ export class PythonManager {
 
     this.status = 'starting';
     this.port = await findAvailablePort(5000);
+    this.logger?.info('Python', `Starting on port ${this.port}`);
 
     return new Promise((resolve, reject) => {
       const mainScript = path.join(this.servicePath, 'main.py');
@@ -67,13 +71,16 @@ export class PythonManager {
       });
 
       this.process.on('error', (err) => {
+        this.logger?.error('Python', `Process error: ${err.message}`);
         this.status = 'error';
         reject(err);
       });
 
       this.process.on('exit', (code) => {
+        this.logger?.warn('Python', `Process exited with code ${code}`);
         if (this.status === 'running' && this.restartCount < this.maxRestarts) {
           this.restartCount++;
+          this.logger?.info('Python', `Restarting (attempt ${this.restartCount})`);
           this.start();
         } else if (this.status !== 'stopped') {
           this.status = 'error';

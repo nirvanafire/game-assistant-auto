@@ -1,4 +1,5 @@
 import type { MatchResult, GroupMatchResult } from '@shared/types/match-result';
+import type { Logger } from './logger';
 
 interface MatchRequest {
   screenshot: string;
@@ -23,9 +24,11 @@ interface HealthResponse {
 
 export class MatcherClient {
   private baseUrl: string;
+  private logger?: Logger;
 
-  constructor(baseUrl: string) {
+  constructor(baseUrl: string, logger?: Logger) {
     this.baseUrl = baseUrl;
+    this.logger = logger;
   }
 
   async match(req: MatchRequest): Promise<MatchResult> {
@@ -58,18 +61,36 @@ export class MatcherClient {
   }
 
   private async get<T>(path: string): Promise<T> {
-    const res = await fetch(`${this.baseUrl}${path}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-    return res.json();
+    try {
+      const res = await fetch(`${this.baseUrl}${path}`);
+      if (!res.ok) {
+        this.logger?.error('Matcher', `HTTP ${res.status}: ${res.statusText}`);
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+      return res.json();
+    } catch (err: any) {
+      if (err.message?.startsWith('HTTP ')) throw err;
+      this.logger?.error('Matcher', `Request failed: ${err.message}`);
+      throw err;
+    }
   }
 
   private async post<T>(path: string, body: unknown): Promise<T> {
-    const res = await fetch(`${this.baseUrl}${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-    return res.json();
+    try {
+      const res = await fetch(`${this.baseUrl}${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        this.logger?.error('Matcher', `HTTP ${res.status}: ${res.statusText}`);
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+      return res.json();
+    } catch (err: any) {
+      if (err.message?.startsWith('HTTP ')) throw err;
+      this.logger?.error('Matcher', `Request failed: ${err.message}`);
+      throw err;
+    }
   }
 }
