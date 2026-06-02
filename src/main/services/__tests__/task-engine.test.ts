@@ -20,9 +20,11 @@ describe('TaskEngine', () => {
       ]),
       listStepGroups: vi.fn().mockReturnValue([]),
       updateTask: vi.fn(),
+      createTaskRun: vi.fn().mockReturnValue('run-1'),
+      updateTaskRun: vi.fn(),
     };
     mockCapture = { capture: vi.fn().mockResolvedValue('data:image/png;base64,abc'), captureRegion: vi.fn() };
-    mockMatcher = { match: vi.fn().mockResolvedValue({ matched: true, x: 100, y: 200, confidence: 0.95, scale: 1.0 }), matchGroup: vi.fn(), health: vi.fn() };
+    mockMatcher = { match: vi.fn().mockResolvedValue({ matched: true, x: 100, y: 200, confidence: 0.95, scale: 1.0 }), matchGroup: vi.fn(), health: vi.fn().mockResolvedValue({ status: 'ok' }) };
     mockClicker = { click: vi.fn(), clickAt: vi.fn() };
     engine = new TaskEngine(mockStorage, mockCapture, mockMatcher, mockClicker);
   });
@@ -119,5 +121,42 @@ describe('TaskEngine', () => {
 
     await engine.start('t1');
     expect(mockClicker.click).toHaveBeenCalledWith(10, 10);
+  });
+
+  it('persists task run history', async () => {
+    await engine.start('t1');
+    expect(mockStorage.createTaskRun).toHaveBeenCalledWith({ taskId: 't1' });
+    expect(mockStorage.updateTaskRun).toHaveBeenCalledWith('run-1', expect.objectContaining({ result: 'completed' }));
+  });
+
+  it('persists failed task run history', async () => {
+    mockMatcher.match.mockRejectedValue(new Error('matcher broke'));
+    await engine.start('t1');
+    expect(mockStorage.createTaskRun).toHaveBeenCalledWith({ taskId: 't1' });
+    expect(mockStorage.updateTaskRun).toHaveBeenCalledWith('run-1', expect.objectContaining({ result: 'failed' }));
+  });
+
+  it('persists stopped task run history', async () => {
+    const promise = engine.start('t1');
+    engine.stop('t1');
+    await promise;
+    expect(mockStorage.createTaskRun).toHaveBeenCalledWith({ taskId: 't1' });
+    expect(mockStorage.updateTaskRun).toHaveBeenCalledWith('run-1', expect.objectContaining({ result: 'stopped' }));
+  });
+
+  it('fails task when Python service is unhealthy', async () => {
+    mockMatcher.health.mockRejectedValue(new Error('Connection refused'));
+    await engine.start('t1');
+    expect(engine.getStatus('t1')).toBe('failed');
+    expect(mockMatcher.match).not.toHaveBeenCalled();
+  });
+
+  it('retries match on network failure and succeeds', async () => {
+    mockMatcher.match
+      .mockRejectedValueOnce(new Error('ECONNRESET'))
+      .mockResolvedValueOnce({ matched: true, x: 100, y: 200, confidence: 0.95, scale: 1.0 });
+    await engine.start('t1');
+    expect(mockMatcher.match).toHaveBeenCalledTimes(2);
+    expect(engine.getStatus('t1')).toBe('completed');
   });
 });

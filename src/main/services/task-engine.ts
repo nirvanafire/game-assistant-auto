@@ -45,15 +45,47 @@ export class TaskEngine {
     const task = this.storage.getTask(taskId);
     if (!task) throw new Error(`Task not found: ${taskId}`);
 
-    const steps = this.storage.listSteps(taskId);
-    if (steps.length === 0) {
-      this.statuses.set(taskId, 'completed');
+    const abort = new AbortController();
+    this.abortControllers.set(taskId, abort);
+
+    // Health check before execution
+    try {
+      const health = await this.matcher.health();
+      if (abort.signal.aborted) {
+        this.statuses.set(taskId, 'stopped');
+        this.abortControllers.delete(taskId);
+        const runId = this.storage.createTaskRun({ taskId });
+        this.storage.updateTaskRun(runId, {
+          endedAt: new Date().toISOString(),
+          result: 'stopped',
+          log: [],
+        });
+        return;
+      }
+      if (health.status !== 'ok') {
+        this.statuses.set(taskId, 'failed');
+        this.abortControllers.delete(taskId);
+        this.logger?.error('TaskEngine', 'Python service is not healthy');
+        return;
+      }
+    } catch (err: any) {
+      this.statuses.set(taskId, 'failed');
+      this.abortControllers.delete(taskId);
+      this.logger?.error('TaskEngine', `Python service unavailable: ${err.message}`);
       return;
     }
 
+    const steps = this.storage.listSteps(taskId);
+    if (steps.length === 0) {
+      this.statuses.set(taskId, 'completed');
+      this.abortControllers.delete(taskId);
+      return;
+    }
+
+    const runId = this.storage.createTaskRun({ taskId });
+    const runLog: any[] = [];
+
     this.statuses.set(taskId, 'running');
-    const abort = new AbortController();
-    this.abortControllers.set(taskId, abort);
 
     const ctx: StepContext = {
       variables: new Map(),
@@ -63,12 +95,27 @@ export class TaskEngine {
 
     try {
       await this.executeSteps(task, steps, ctx, abort.signal);
+      this.storage.updateTaskRun(runId, {
+        endedAt: new Date().toISOString(),
+        result: this.statuses.get(taskId) === 'completed' ? 'completed' : 'stopped',
+        log: runLog,
+      });
     } catch (err: any) {
       if (err.message === 'STOPPED') {
         this.statuses.set(taskId, 'stopped');
+        this.storage.updateTaskRun(runId, {
+          endedAt: new Date().toISOString(),
+          result: 'stopped',
+          log: runLog,
+        });
       } else {
         this.statuses.set(taskId, 'failed');
         this.logger?.error('TaskEngine', `Task ${taskId} failed: ${err.message}`);
+        this.storage.updateTaskRun(runId, {
+          endedAt: new Date().toISOString(),
+          result: 'failed',
+          log: runLog,
+        });
       }
     } finally {
       this.abortControllers.delete(taskId);
@@ -237,13 +284,20 @@ export class TaskEngine {
     switch (step.type) {
       case 'IMAGE_MATCH': {
         const config = step.config as any;
-        const result = await this.matcher.match({
+        const matchRequest = {
           screenshot: ctx.lastScreenshot!,
           template: config.templatePath,
           threshold: config.threshold,
           scaleRange: config.scaleRange,
           region: config.captureRegion,
-        });
+        };
+        let result: MatchResult;
+        try {
+          result = await this.matcher.match(matchRequest);
+        } catch (err: any) {
+          this.logger?.warn('TaskEngine', `Match request failed, retrying: ${err.message}`);
+          result = await this.matcher.match(matchRequest);
+        }
         if (result.matched) {
           ctx.variables.set(step.id, result);
         }
