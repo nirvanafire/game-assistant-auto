@@ -43,7 +43,7 @@ describe('IPC_CHANNELS', () => {
     expect(IPC_CHANNELS.CAPTURE_UPDATED).toBe('capture:updated');
   });
 
-  it('has 35 total channels', () => {
-    expect(Object.keys(IPC_CHANNELS)).toHaveLength(35);
+  it('has 49 total channels', () => {
+    expect(Object.keys(IPC_CHANNELS)).toHaveLength(49);
   });
 });

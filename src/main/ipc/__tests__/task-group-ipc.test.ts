@@ -26,6 +26,11 @@ describe('TaskGroup IPC Handlers', () => {
     expect(registry.handle).toHaveBeenCalledWith(IPC_CHANNELS.TASK_GROUP_CREATE, expect.any(Function));
     expect(registry.handle).toHaveBeenCalledWith(IPC_CHANNELS.TASK_GROUP_DELETE, expect.any(Function));
     expect(registry.handle).toHaveBeenCalledWith(IPC_CHANNELS.TASK_GROUP_LIST, expect.any(Function));
+    expect(registry.handle).toHaveBeenCalledWith(IPC_CHANNELS.TASK_GROUP_GET, expect.any(Function));
+    expect(registry.handle).toHaveBeenCalledWith(IPC_CHANNELS.TASK_GROUP_GET_ITEMS, expect.any(Function));
+    expect(registry.handle).toHaveBeenCalledWith(IPC_CHANNELS.TASK_GROUP_ADD_ITEM, expect.any(Function));
+    expect(registry.handle).toHaveBeenCalledWith(IPC_CHANNELS.TASK_GROUP_REMOVE_ITEM, expect.any(Function));
+    expect(registry.handle).toHaveBeenCalledWith(IPC_CHANNELS.TASK_GROUP_UPDATE, expect.any(Function));
     expect(registry.handle).toHaveBeenCalledWith(IPC_CHANNELS.TASK_GROUP_START, expect.any(Function));
     expect(registry.handle).toHaveBeenCalledWith(IPC_CHANNELS.TASK_GROUP_STOP, expect.any(Function));
   });
@@ -65,6 +70,48 @@ describe('TaskGroup IPC Handlers', () => {
     const handler = registry.handle.mock.calls.find((c: any) => c[0] === IPC_CHANNELS.TASK_GROUP_STOP)[1];
     handler({}, { taskGroupId: 'g1' });
     expect(mockTaskGroupEngine.stop).toHaveBeenCalledWith('g1');
+  });
+
+  it('get handler returns group by id', () => {
+    mockStorage.getTaskGroup.mockReturnValue({ id: 'g1', name: 'Group' });
+    createTaskGroupIpcHandlers(registry, mockStorage, mockTaskGroupEngine);
+    const handler = registry.handle.mock.calls.find((c: any) => c[0] === IPC_CHANNELS.TASK_GROUP_GET)[1];
+    const result = handler({}, { taskGroupId: 'g1' });
+    expect(result.group).toEqual({ id: 'g1', name: 'Group' });
+    expect(mockStorage.getTaskGroup).toHaveBeenCalledWith('g1');
+  });
+
+  it('get-items handler returns items for group', () => {
+    mockStorage.listTaskGroupItems.mockReturnValue([{ id: 'i1', taskId: 't1', order: 0 }]);
+    createTaskGroupIpcHandlers(registry, mockStorage, mockTaskGroupEngine);
+    const handler = registry.handle.mock.calls.find((c: any) => c[0] === IPC_CHANNELS.TASK_GROUP_GET_ITEMS)[1];
+    const result = handler({}, { taskGroupId: 'g1' });
+    expect(result.items).toEqual([{ id: 'i1', taskId: 't1', order: 0 }]);
+    expect(mockStorage.listTaskGroupItems).toHaveBeenCalledWith('g1');
+  });
+
+  it('add-item handler adds item to group', () => {
+    mockStorage.addTaskGroupItem.mockReturnValue({ id: 'i1', taskGroupId: 'g1', taskId: 't1', order: 0 });
+    createTaskGroupIpcHandlers(registry, mockStorage, mockTaskGroupEngine);
+    const handler = registry.handle.mock.calls.find((c: any) => c[0] === IPC_CHANNELS.TASK_GROUP_ADD_ITEM)[1];
+    const result = handler({}, { taskGroupId: 'g1', taskId: 't1', order: 0 });
+    expect(result.item.id).toBe('i1');
+    expect(mockStorage.addTaskGroupItem).toHaveBeenCalledWith('g1', 't1', 0);
+  });
+
+  it('remove-item handler removes item', () => {
+    createTaskGroupIpcHandlers(registry, mockStorage, mockTaskGroupEngine);
+    const handler = registry.handle.mock.calls.find((c: any) => c[0] === IPC_CHANNELS.TASK_GROUP_REMOVE_ITEM)[1];
+    handler({}, { itemId: 'i1' });
+    expect(mockStorage.deleteTaskGroupItem).toHaveBeenCalledWith('i1');
+  });
+
+  it('update handler updates group', () => {
+    mockStorage.updateTaskGroup = vi.fn();
+    createTaskGroupIpcHandlers(registry, mockStorage, mockTaskGroupEngine);
+    const handler = registry.handle.mock.calls.find((c: any) => c[0] === IPC_CHANNELS.TASK_GROUP_UPDATE)[1];
+    handler({}, { taskGroupId: 'g1', updates: { name: 'New Name', failurePolicy: 'SKIP' } });
+    expect(mockStorage.updateTaskGroup).toHaveBeenCalledWith('g1', { name: 'New Name', failurePolicy: 'SKIP' });
   });
 
   it('does not register duplicate handlers', () => {

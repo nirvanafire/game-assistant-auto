@@ -2,12 +2,15 @@ import React, { useState } from 'react';
 import { Tabs, Splitter, Button, Space } from 'antd';
 import { UnorderedListOutlined, GroupOutlined } from '@ant-design/icons';
 import { LogViewer } from './components/Tools/LogViewer';
+import { ImageCompare } from './components/Tools/ImageCompare';
+import { ClickTest } from './components/Tools/ClickTest';
 import { NetworkLog } from './components/Network/NetworkLog';
 import { TaskList } from './components/Assistant/TaskList';
 import { TaskEditor } from './components/Assistant/TaskEditor';
 import { TaskGroupList } from './components/Assistant/TaskGroupList';
 import { TaskGroupEditor } from './components/Assistant/TaskGroupEditor';
 import { ExecutionStatus } from './components/Assistant/ExecutionStatus';
+import { BrowserPanel } from './components/Browser/BrowserPanel';
 
 type AssistantView = 'tasks' | 'task-editor' | 'groups' | 'group-editor';
 
@@ -43,10 +46,7 @@ export const App: React.FC = () => {
   return (
     <Splitter style={{ height: '100vh' }}>
       <Splitter.Panel defaultSize="50%" min="30%">
-        <div style={{ padding: 16 }}>
-          <h2>Browser</h2>
-          <p>Embedded browser will be here</p>
-        </div>
+        <BrowserPanel />
       </Splitter.Panel>
       <Splitter.Panel>
         <Tabs defaultActiveKey="assistant" items={[
@@ -86,8 +86,8 @@ export const App: React.FC = () => {
                 defaultActiveKey="log"
                 items={[
                   { key: 'log', label: 'Log', children: <LogViewer /> },
-                  { key: 'compare', label: 'Image Compare', children: <div>Image compare tool</div> },
-                  { key: 'click', label: 'Click Test', children: <div>Click test tool</div> },
+                  { key: 'compare', label: 'Image Compare', children: <ImageCompare /> },
+                  { key: 'click', label: 'Click Test', children: <ClickTest /> },
                 ]}
               />
             ),

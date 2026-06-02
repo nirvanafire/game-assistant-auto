@@ -35,8 +35,7 @@ export const ImageCompare: React.FC = () => {
     setLoading(true);
     try {
       const api = (window as any).electronAPI;
-      const res = await api.invoke('capture:screenshot', {
-        action: 'match',
+      const res = await api.invoke('capture:match', {
         screenshot,
         template,
         threshold: 0.8,

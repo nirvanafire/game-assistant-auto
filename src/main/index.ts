@@ -14,12 +14,15 @@ import { TaskGroupEngine } from './services/task-group-engine';
 import { CaptureService } from './services/capture';
 import { ClickerService } from './services/clicker';
 import { MatcherClient } from './services/matcher-client';
+import { ConfigService } from './services/config';
 import Database from 'better-sqlite3';
 import path from 'path';
 
 const userDataPath = app.getPath('userData');
-const dbPath = path.join(userDataPath, 'data', 'game-assistant.db');
-const logDir = path.join(userDataPath, 'data', 'logs');
+const dataDir = path.join(userDataPath, 'data');
+const dbPath = path.join(dataDir, 'game-assistant.db');
+const logDir = path.join(dataDir, 'logs');
+const configPath = path.join(dataDir, 'config.json');
 
 let db: Database.Database;
 let storage: StorageService;
@@ -31,9 +34,10 @@ app.whenReady().then(() => {
   createSchema(db);
   runMigrations(db);
 
+  const config = new ConfigService(configPath);
   storage = new StorageService(db);
-  logger = new Logger(logDir, false);
-  logger.cleanup(30);
+  logger = new Logger(logDir, config.get('debugMode'));
+  logger.cleanup(config.get('autoPruneDays'));
 
   registry = new IpcRegistry();
   const win = createMainWindow();
@@ -41,7 +45,7 @@ app.whenReady().then(() => {
   // Services that need webContents
   const capture = new CaptureService(win.webContents);
   const clicker = new ClickerService(win.webContents, logger);
-  const matcher = new MatcherClient('http://127.0.0.1:5000', logger);
+  const matcher = new MatcherClient(`http://127.0.0.1:${config.get('pythonPort')}`, logger);
   const taskEngine = new TaskEngine(storage, capture, matcher, clicker, logger);
   const taskGroupEngine = new TaskGroupEngine(storage, taskEngine);
 
