@@ -50,7 +50,7 @@ const SortableItemRow: React.FC<SortableItemRowProps> = ({
   const otherItems = allItems.filter((i) => i.id !== item.id);
 
   const jumpOptions = [
-    { label: '结束', value: '__END__' },
+    { label: '结束', value: 'END' },
     ...otherItems.map((i) => {
       const t = tasks.find((tk) => tk.id === i.taskId);
       return { label: t?.name || i.taskId, value: i.id };
@@ -114,7 +114,7 @@ export const TaskGroupEditor: React.FC<TaskGroupEditorProps> = ({ groupId, onClo
     } catch {
       message.error('加载分组数据失败');
     }
-  }, [groupId, api]);
+  }, [groupId]);
 
   useEffect(() => {
     loadData();
@@ -181,10 +181,13 @@ export const TaskGroupEditor: React.FC<TaskGroupEditorProps> = ({ groupId, onClo
     value: string | null,
   ) => {
     if (!api) return;
+    const item = items.find((i) => i.id === itemId);
+    if (!item) return;
     try {
       await api.invoke(IPC_CHANNELS.TASK_GROUP_UPDATE_ITEM_TARGET, {
         itemId,
-        [field]: value,
+        onSuccess: field === 'onSuccess' ? value : item.onSuccess,
+        onFailure: field === 'onFailure' ? value : item.onFailure,
       });
       setItems((prev) =>
         prev.map((i) => (i.id === itemId ? { ...i, [field]: value } : i)),
@@ -256,8 +259,8 @@ export const TaskGroupEditor: React.FC<TaskGroupEditorProps> = ({ groupId, onClo
           <Form.Item name="loopIntervalMs" label="间隔(分钟)">
             <InputNumber min={1} max={1440} />
           </Form.Item>
-          <Form.Item name="loopMaxIterations" label="最大次数">
-            <InputNumber min={1} max={9999} />
+          <Form.Item name="loopMaxIterations" label="最大次数" extra="0 = 不限次数">
+            <InputNumber min={0} max={9999} />
           </Form.Item>
           <Form.Item>
             <Button type="primary" htmlType="submit">保存循环</Button>
