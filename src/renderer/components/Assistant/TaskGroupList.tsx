@@ -80,7 +80,7 @@ export const TaskGroupList: React.FC<TaskGroupListProps> = ({ onEdit }) => {
               <Button icon={<DeleteOutlined />} size="small" danger />
             </Popconfirm>,
           ]}>
-            <List.Item.Meta title={group.name} description={<Tag>{group.failurePolicy}</Tag>} />
+            <List.Item.Meta title={group.name} description={<>{group.loopEnabled && <Tag color="blue">循环</Tag>}<Tag>{group.failurePolicy}</Tag></>} />
           </List.Item>
         )}
       />
