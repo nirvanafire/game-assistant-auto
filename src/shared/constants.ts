@@ -52,6 +52,8 @@ export const IPC_CHANNELS = {
   TASK_GROUP_UPDATE_LOOP: 'task-group:update-loop',
   TASK_GROUP_UPDATE_ITEM_TARGET: 'task-group:update-item-target',
   TASK_GROUP_REORDER_ITEMS: 'task-group:reorder-items',
+  BROWSER_RESIZED: 'browser:resized',
+  TASK_CLEAR_COORDINATE_CACHE: 'task:clear-coordinate-cache',
 } as const;
 
 export type IPCChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
