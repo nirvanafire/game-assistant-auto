@@ -17,6 +17,7 @@ interface StepContext {
 export class TaskEngine {
   private statuses = new Map<string, TaskRunStatus>();
   private abortControllers = new Map<string, AbortController>();
+  private coordinateCache = new Map<string, { x: number; y: number }>();
   private storage: StorageService;
   private capture: CaptureService;
   private matcher: MatcherClient;
@@ -39,6 +40,18 @@ export class TaskEngine {
 
   getStatus(taskId: string): TaskRunStatus {
     return this.statuses.get(taskId) || 'idle';
+  }
+
+  getCoordinateCacheSize(): number {
+    return this.coordinateCache.size;
+  }
+
+  getCachedCoordinates(templatePath: string): { x: number; y: number } | undefined {
+    return this.coordinateCache.get(templatePath);
+  }
+
+  clearCoordinateCache(): void {
+    this.coordinateCache.clear();
   }
 
   async start(taskId: string): Promise<void> {
@@ -87,6 +100,8 @@ export class TaskEngine {
       });
       return;
     }
+
+    this.coordinateCache.clear();
 
     const steps = this.storage.listSteps(taskId);
     if (steps.length === 0) {
@@ -209,20 +224,22 @@ export class TaskEngine {
         const groupSteps = steps.filter(s => s.groupId === group.id);
         const loopCount = group.loopCount === 0 ? Infinity : group.loopCount;
         let broken = false;
+        let jumpedOutside = false;
 
         for (let loop = 0; loop < loopCount; loop++) {
           if (signal.aborted) throw new Error('STOPPED');
 
-          for (const groupStep of groupSteps) {
+          for (let gsi = 0; gsi < groupSteps.length; ) {
             if (signal.aborted) throw new Error('STOPPED');
             if (Date.now() - startTime > settings.globalTimeoutMs) {
               this.statuses.set(taskId, 'failed');
               return;
             }
 
+            const groupStep = groupSteps[gsi];
             ctx.currentStepId = groupStep.id;
 
-            if (groupStep.screenshotBeforeMatch || !ctx.lastScreenshot) {
+            if (groupStep.realtimeMatch || !ctx.lastScreenshot) {
               ctx.lastScreenshot = await this.capture.capture();
             }
 
@@ -230,28 +247,53 @@ export class TaskEngine {
 
             const result = await this.executeStepWithTimeout(groupStep, ctx, settings.stepTimeoutMs, signal);
             runLog.push({ stepId: groupStep.id, type: groupStep.type, matched: result, timestamp: new Date().toISOString() });
+
+            if (groupStep.type === 'CLICK') {
+              gsi++;
+              continue;
+            }
+
             const transition = result ? groupStep.onMatch : groupStep.onMiss;
 
-            if (transition.action === 'END_TASK') {
+            if (transition?.action === 'END_TASK') {
               this.statuses.set(taskId, 'completed');
               return;
             }
-            if (transition.action === 'END_GROUP_LOOP') {
+            if (transition?.action === 'END_STEP_GROUP') {
               broken = true;
               break;
             }
+            if (transition?.nextStepId) {
+              const gi = groupSteps.findIndex(gs => gs.id === transition.nextStepId);
+              if (gi !== -1) {
+                gsi = gi;
+                continue;
+              }
+              const si = steps.findIndex(s => s.id === transition.nextStepId);
+              if (si !== -1) {
+                stepIndex = si;
+                jumpedOutside = true;
+                broken = true;
+                break;
+              }
+              this.statuses.set(taskId, 'completed');
+              return;
+            }
+            gsi++;
           }
 
           if (broken) break;
         }
 
-        stepIndex = steps.findIndex((s, i) => i >= stepIndex && s.groupId !== group.id);
-        if (stepIndex === -1) {
-          this.statuses.set(taskId, 'completed');
-          return;
+        if (!jumpedOutside) {
+          stepIndex = steps.findIndex((s, i) => i > stepIndex && s.groupId !== group.id);
+          if (stepIndex === -1) {
+            this.statuses.set(taskId, 'completed');
+            return;
+          }
         }
       } else {
-        if (currentStep.screenshotBeforeMatch || !ctx.lastScreenshot) {
+        if (currentStep.realtimeMatch || !ctx.lastScreenshot) {
           ctx.lastScreenshot = await this.capture.capture();
         }
 
@@ -259,14 +301,20 @@ export class TaskEngine {
 
         const result = await this.executeStepWithTimeout(currentStep, ctx, settings.stepTimeoutMs, signal);
         runLog.push({ stepId: currentStep.id, type: currentStep.type, matched: result, timestamp: new Date().toISOString() });
+
+        if (currentStep.type === 'CLICK') {
+          stepIndex++;
+          continue;
+        }
+
         const transition = result ? currentStep.onMatch : currentStep.onMiss;
 
-        if (transition.action === 'END_TASK') {
+        if (transition?.action === 'END_TASK') {
           this.statuses.set(taskId, 'completed');
           return;
         }
 
-        if (transition.nextStepId) {
+        if (transition?.nextStepId) {
           stepIndex = steps.findIndex(s => s.id === transition.nextStepId);
           if (stepIndex === -1) {
             this.statuses.set(taskId, 'completed');
@@ -306,6 +354,14 @@ export class TaskEngine {
     switch (step.type) {
       case 'IMAGE_MATCH': {
         const config = step.config as any;
+        if (step.cacheCoordinates) {
+          const cached = this.coordinateCache.get(config.templatePath);
+          if (cached) {
+            const cachedResult: MatchResult = { matched: true, x: cached.x, y: cached.y, confidence: 1, scale: 1 };
+            ctx.variables.set(step.id, cachedResult);
+            return true;
+          }
+        }
         const matchRequest = {
           screenshot: ctx.lastScreenshot!,
           template: config.templatePath,
@@ -322,6 +378,9 @@ export class TaskEngine {
         }
         if (result.matched) {
           ctx.variables.set(step.id, result);
+          if (step.cacheCoordinates && result.x != null && result.y != null) {
+            this.coordinateCache.set(config.templatePath, { x: result.x, y: result.y });
+          }
         }
         return result.matched;
       }
