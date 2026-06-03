@@ -25,10 +25,26 @@ export const BrowserPanel: React.FC = () => {
     wv.addEventListener('did-stop-loading', onStopLoading);
     wv.addEventListener('did-fail-load', onFailLoad);
 
+    // Forward resize events to main process for coordinate cache invalidation
+    let resizeTimer: ReturnType<typeof setTimeout>;
+    const observer = new ResizeObserver(() => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        (window as any).electronAPI?.invoke('browser:resized');
+      }, 300);
+    });
+
+    const container = wv.parentElement;
+    if (container) {
+      observer.observe(container);
+    }
+
     return () => {
       wv.removeEventListener('did-start-loading', onStartLoading);
       wv.removeEventListener('did-stop-loading', onStopLoading);
       wv.removeEventListener('did-fail-load', onFailLoad);
+      clearTimeout(resizeTimer);
+      observer.disconnect();
     };
   }, []);
 

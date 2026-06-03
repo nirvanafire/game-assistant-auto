@@ -94,6 +94,12 @@ app.whenReady().then(() => {
     return result;
   });
 
+  // Browser resize handler — clear coordinate cache
+  registry.handle('browser:resized', () => {
+    taskEngine.clearCoordinateCache();
+    return { success: true };
+  });
+
 });
 
 app.on('window-all-closed', () => {

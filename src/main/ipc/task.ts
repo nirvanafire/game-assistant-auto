@@ -69,4 +69,9 @@ export function createTaskIpcHandlers(
     storage.deleteStep(data.stepId);
     return { success: true };
   });
+
+  registry.handle(IPC_CHANNELS.TASK_CLEAR_COORDINATE_CACHE, () => {
+    taskEngine.clearCoordinateCache();
+    return { success: true };
+  });
 }
