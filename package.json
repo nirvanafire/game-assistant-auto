@@ -4,13 +4,17 @@
   "description": "Web game assistant with embedded browser and image matching",
   "main": "out/main/index.js",
   "scripts": {
+    "predev": "node scripts/verify-electron.mjs && electron-rebuild -f -w better-sqlite3",
     "dev": "electron-vite dev",
+    "prebuild": "node scripts/verify-electron.mjs && electron-rebuild -f -w better-sqlite3",
     "build": "electron-vite build",
+    "pretest": "npm rebuild better-sqlite3",
     "test": "vitest",
     "test:run": "vitest run",
     "build:python": "cd python-service && pyinstaller matcher.spec --distpath ../bin --workpath ../build/pyinstaller --noconfirm",
     "package:win": "electron-builder --win",
-    "package:mac": "electron-builder --mac"
+    "package:mac": "electron-builder --mac",
+    "postinstall": "node scripts/postinstall.mjs"
   },
   "keywords": [],
   "author": "",
@@ -28,6 +32,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.0.4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/better-sqlite3": "^7.6.13",
@@ -35,7 +40,7 @@
     "@types/react-dom": "^19.2.3",
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^6.0.2",
-    "electron": "^35.7.5",
+    "electron": "^41.7.1",
     "electron-vite": "^6.0.0-beta.1",
     "jsdom": "^29.1.1",
     "typescript": "^6.0.3",

@@ -1,4 +1,4 @@
-import { app } from 'electron';
+import { app, session } from 'electron';
 import { createMainWindow, getMainWindow } from './window';
 import { createSchema } from './db/schema';
 import { runMigrations } from './db/migrations';
@@ -34,6 +34,24 @@ let logger: Logger;
 let registry: IpcRegistry;
 
 app.whenReady().then(() => {
+  // Dedicated session for the embedded browser webview.
+  // Strip headers that block page embedding (X-Frame-Options, CSP frame-ancestors).
+  const webviewSession = session.fromPartition('persist:webview:browser');
+  webviewSession.webRequest.onHeadersReceived((details, callback) => {
+    const responseHeaders = { ...details.responseHeaders };
+    delete responseHeaders['x-frame-options'];
+    delete responseHeaders['X-Frame-Options'];
+    if (responseHeaders['content-security-policy']) {
+      responseHeaders['content-security-policy'] = responseHeaders['content-security-policy']
+        .map(h => h.replace(/frame-ancestors[^;]*(;|$)/gi, '').trim())
+        .filter(h => h.length > 0);
+      if (responseHeaders['content-security-policy'].length === 0) {
+        delete responseHeaders['content-security-policy'];
+      }
+    }
+    callback({ responseHeaders });
+  });
+
   db = new Database(dbPath);
   createSchema(db);
   runMigrations(db);
