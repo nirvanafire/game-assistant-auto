@@ -19,20 +19,23 @@ const STEP_TYPES: { label: string; value: StepType }[] = [
 const TRANSITION_ACTIONS = [
   { label: '(无)', value: undefined },
   { label: '结束任务', value: 'END_TASK' },
-  { label: '结束组循环', value: 'END_GROUP_LOOP' },
+  { label: '结束步骤组', value: 'END_STEP_GROUP' },
 ];
 
 export const StepEditor: React.FC<StepEditorProps> = ({ step, taskId, order = 0, onSave, onCancel }) => {
   const [form] = Form.useForm();
 
   const handleSubmit = (values: any) => {
+    const type = values.type;
     onSave({
       ...values,
       taskId,
       order: step?.order ?? order,
       config: buildConfig(values),
-      onMatch: { action: values.onMatchAction, nextStepId: values.onMatchNextStepId },
-      onMiss: { action: values.onMissAction, nextStepId: values.onMissNextStepId },
+      onMatch: type === 'CLICK' ? undefined : { action: values.onMatchAction, nextStepId: values.onMatchNextStepId },
+      onMiss: type === 'CLICK' ? undefined : { action: values.onMissAction, nextStepId: values.onMissNextStepId },
+      realtimeMatch: values.realtimeMatch ?? false,
+      cacheCoordinates: values.cacheCoordinates ?? false,
     });
   };
 
@@ -47,17 +50,21 @@ export const StepEditor: React.FC<StepEditorProps> = ({ step, taskId, order = 0,
             ? {
                 type: step.type,
                 screenshotBeforeMatch: step.screenshotBeforeMatch,
+                realtimeMatch: step.realtimeMatch,
+                cacheCoordinates: step.cacheCoordinates,
                 ...(step.config as Record<string, unknown>),
-                onMatchAction: step.onMatch.action,
-                onMatchNextStepId: step.onMatch.nextStepId,
-                onMissAction: step.onMiss.action,
-                onMissNextStepId: step.onMiss.nextStepId,
+                onMatchAction: step.onMatch?.action,
+                onMatchNextStepId: step.onMatch?.nextStepId,
+                onMissAction: step.onMiss?.action,
+                onMissNextStepId: step.onMiss?.nextStepId,
               }
             : {
                 type: 'IMAGE_MATCH',
                 threshold: 0.8,
                 scaleRange: [0.5, 2.0],
                 screenshotBeforeMatch: false,
+                realtimeMatch: false,
+                cacheCoordinates: false,
               }
         }
       >
@@ -66,6 +73,23 @@ export const StepEditor: React.FC<StepEditorProps> = ({ step, taskId, order = 0,
         </Form.Item>
         <Form.Item name="screenshotBeforeMatch" label="全新截图" valuePropName="checked">
           <Switch />
+        </Form.Item>
+        <Form.Item name="realtimeMatch" label="实时比对" valuePropName="checked">
+          <Switch />
+        </Form.Item>
+
+        <Form.Item noStyle shouldUpdate={(prev, cur) => prev.type !== cur.type}>
+          {({ getFieldValue }) => {
+            const type = getFieldValue('type');
+            if (type === 'IMAGE_MATCH') {
+              return (
+                <Form.Item name="cacheCoordinates" label="缓存坐标" valuePropName="checked">
+                  <Switch />
+                </Form.Item>
+              );
+            }
+            return null;
+          }}
         </Form.Item>
 
         <Form.Item noStyle shouldUpdate={(prev, cur) => prev.type !== cur.type}>
@@ -77,23 +101,32 @@ export const StepEditor: React.FC<StepEditorProps> = ({ step, taskId, order = 0,
           }}
         </Form.Item>
 
-        <Card type="inner" title="匹配时" size="small" style={{ marginTop: 16 }}>
-          <Form.Item name="onMatchAction" label="动作">
-            <Select options={TRANSITION_ACTIONS} allowClear />
-          </Form.Item>
-          <Form.Item name="onMatchNextStepId" label="下一步骤 ID">
-            <Input placeholder="可选步骤 ID" />
-          </Form.Item>
-        </Card>
-
-        <Card type="inner" title="未匹配时" size="small" style={{ marginTop: 8 }}>
-          <Form.Item name="onMissAction" label="动作">
-            <Select options={TRANSITION_ACTIONS} allowClear />
-          </Form.Item>
-          <Form.Item name="onMissNextStepId" label="下一步骤 ID">
-            <Input placeholder="可选步骤 ID" />
-          </Form.Item>
-        </Card>
+        <Form.Item noStyle shouldUpdate={(prev, cur) => prev.type !== cur.type}>
+          {({ getFieldValue }) => {
+            const type = getFieldValue('type');
+            if (type === 'CLICK') return null;
+            return (
+              <>
+                <Card type="inner" title="匹配时" size="small" style={{ marginTop: 16 }}>
+                  <Form.Item name="onMatchAction" label="动作">
+                    <Select options={TRANSITION_ACTIONS} allowClear />
+                  </Form.Item>
+                  <Form.Item name="onMatchNextStepId" label="下一步骤 ID">
+                    <Input placeholder="可选步骤 ID" />
+                  </Form.Item>
+                </Card>
+                <Card type="inner" title="未匹配时" size="small" style={{ marginTop: 8 }}>
+                  <Form.Item name="onMissAction" label="动作">
+                    <Select options={TRANSITION_ACTIONS} allowClear />
+                  </Form.Item>
+                  <Form.Item name="onMissNextStepId" label="下一步骤 ID">
+                    <Input placeholder="可选步骤 ID" />
+                  </Form.Item>
+                </Card>
+              </>
+            );
+          }}
+        </Form.Item>
 
         <Space style={{ width: '100%', justifyContent: 'flex-end', marginTop: 16 }}>
           <Button onClick={onCancel}>取消</Button>

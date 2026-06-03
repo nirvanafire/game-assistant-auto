@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Tag, List, Space, Typography } from 'antd';
+import { Button, Card, Tag, List, Space, Typography } from 'antd';
+import { DeleteOutlined } from '@ant-design/icons';
 import { IPC_CHANNELS } from '@shared/constants';
 
 const { Text } = Typography;
@@ -38,6 +39,10 @@ export const ExecutionStatus: React.FC = () => {
     };
   }, []);
 
+  const handleClearCache = () => {
+    (window as any).electronAPI?.invoke(IPC_CHANNELS.TASK_CLEAR_COORDINATE_CACHE);
+  };
+
   if (!taskStatus || taskStatus.status === 'idle') return null;
 
   const statusColor: Record<string, string> = {
@@ -51,6 +56,9 @@ export const ExecutionStatus: React.FC = () => {
           <Text>任务:</Text>
           <Tag color={statusColor[taskStatus.status]}>{taskStatus.status}</Tag>
           {taskStatus.currentStepId && <Text type="secondary">步骤: {taskStatus.currentStepId}</Text>}
+          {taskStatus.status === 'running' && (
+            <Button size="small" icon={<DeleteOutlined />} onClick={handleClearCache}>清除缓存</Button>
+          )}
         </Space>
         {stepResults.length > 0 && (
           <List

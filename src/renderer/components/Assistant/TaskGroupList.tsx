@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { List, Button, Tag, Popconfirm, Modal, Form, Input, Select, message } from 'antd';
+import { List, Button, Tag, Popconfirm, Modal, Form, Input, Select, message, Drawer } from 'antd';
 import { PlusOutlined, PlayCircleOutlined, StopOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons';
 import { IPC_CHANNELS } from '@shared/constants';
+import { TaskGroupEditor } from './TaskGroupEditor';
 import type { TaskGroup } from '@shared/types/task-group';
 
 interface TaskGroupListProps {
@@ -11,6 +12,7 @@ interface TaskGroupListProps {
 export const TaskGroupList: React.FC<TaskGroupListProps> = ({ onEdit }) => {
   const [groups, setGroups] = useState<TaskGroup[]>([]);
   const [showCreate, setShowCreate] = useState(false);
+  const [drawerGroupId, setDrawerGroupId] = useState<string | null>(null);
   const [form] = Form.useForm();
 
   useEffect(() => { loadGroups(); }, []);
@@ -66,20 +68,33 @@ export const TaskGroupList: React.FC<TaskGroupListProps> = ({ onEdit }) => {
     }
   };
 
+  const handleDoubleClick = (groupId: string) => {
+    setDrawerGroupId(groupId);
+  };
+
+  const handleEditClick = (groupId: string) => {
+    setDrawerGroupId(groupId);
+    onEdit(groupId);
+  };
+
   return (
     <>
       <Button icon={<PlusOutlined />} onClick={() => setShowCreate(true)} style={{ marginBottom: 8 }}>新建任务组</Button>
       <List
         dataSource={groups}
         renderItem={(group) => (
-          <List.Item key={group.id} actions={[
-            <Button icon={<PlayCircleOutlined />} type="primary" size="small" onClick={() => handleStart(group.id)} />,
-            <Button icon={<StopOutlined />} size="small" onClick={() => handleStop(group.id)} />,
-            <Button icon={<EditOutlined />} size="small" onClick={() => onEdit(group.id)} />,
-            <Popconfirm title="确定删除？" onConfirm={() => handleDelete(group.id)}>
-              <Button icon={<DeleteOutlined />} size="small" danger />
-            </Popconfirm>,
-          ]}>
+          <List.Item
+            key={group.id}
+            onDoubleClick={() => handleDoubleClick(group.id)}
+            actions={[
+              <Button icon={<PlayCircleOutlined />} type="primary" size="small" onClick={() => handleStart(group.id)} />,
+              <Button icon={<StopOutlined />} size="small" onClick={() => handleStop(group.id)} />,
+              <Button icon={<EditOutlined />} size="small" onClick={() => handleEditClick(group.id)} />,
+              <Popconfirm title="确定删除？" onConfirm={() => handleDelete(group.id)}>
+                <Button icon={<DeleteOutlined />} size="small" danger />
+              </Popconfirm>,
+            ]}
+          >
             <List.Item.Meta title={group.name} description={<>{group.loopEnabled && <Tag color="blue">循环</Tag>}<Tag>{group.failurePolicy}</Tag></>} />
           </List.Item>
         )}
@@ -92,6 +107,17 @@ export const TaskGroupList: React.FC<TaskGroupListProps> = ({ onEdit }) => {
           </Form.Item>
         </Form>
       </Modal>
+      <Drawer
+        title="编辑任务组"
+        open={drawerGroupId !== null}
+        onClose={() => setDrawerGroupId(null)}
+        width={700}
+        destroyOnClose
+      >
+        {drawerGroupId && (
+          <TaskGroupEditor groupId={drawerGroupId} onClose={() => setDrawerGroupId(null)} />
+        )}
+      </Drawer>
     </>
   );
 };
