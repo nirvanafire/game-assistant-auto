@@ -13,15 +13,15 @@ describe('migrations', () => {
 
   it('getCurrentVersion returns schema version', () => {
     const version = getCurrentVersion(db);
-    expect(version).toBe(2);
+    expect(version).toBe(3);
   });
 
   it('returns current version when no migrations needed', () => {
     const version = getCurrentVersion(db);
-    expect(version).toBe(2);
+    expect(version).toBe(3);
 
     runMigrations(db);
-    expect(getCurrentVersion(db)).toBe(2);
+    expect(getCurrentVersion(db)).toBe(3);
   });
 
   it('skips already-applied migrations', () => {
@@ -51,18 +51,18 @@ describe('migrations', () => {
   it('runs additional migrations when available', () => {
     const migrations: Migration[] = [
       {
-        version: 3,
+        version: 4,
         up: (db: Database.Database) => {
           db.exec(`ALTER TABLE tasks ADD COLUMN priority INTEGER DEFAULT 0`);
         },
       },
     ];
 
-    expect(getCurrentVersion(db)).toBe(2);
+    expect(getCurrentVersion(db)).toBe(3);
 
     runMigrations(db, migrations);
 
-    expect(getCurrentVersion(db)).toBe(3);
+    expect(getCurrentVersion(db)).toBe(4);
 
     // Verify the column was added
     const columns = db.prepare(`PRAGMA table_info(tasks)`).all() as Array<{ name: string }>;

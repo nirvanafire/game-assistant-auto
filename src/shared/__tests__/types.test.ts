@@ -53,8 +53,8 @@ describe('IPC_CHANNELS', () => {
     expect(IPC_CHANNELS.BROWSER_LOADING_STATE).toBe('browser:loading-state');
   });
 
-  it('has 53 total channels', () => {
-    expect(Object.keys(IPC_CHANNELS)).toHaveLength(53);
+  it('has 55 total channels', () => {
+    expect(Object.keys(IPC_CHANNELS)).toHaveLength(55);
   });
 
   it('has new IPC channels for loop and jump-target', () => {

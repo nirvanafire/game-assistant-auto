@@ -38,6 +38,17 @@ function createV1Schema(db: Database.Database): void {
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS steps (
+      id TEXT PRIMARY KEY,
+      task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+      type TEXT NOT NULL,
+      "order" INTEGER NOT NULL,
+      config JSON NOT NULL,
+      on_match JSON NOT NULL DEFAULT '{}',
+      on_miss JSON NOT NULL DEFAULT '{}',
+      screenshot_before_match INTEGER DEFAULT 0
+    );
+
     INSERT OR IGNORE INTO schema_version (version) VALUES (1);
   `);
 }
@@ -86,8 +97,8 @@ describe('migration v2: loop and jump target fields', () => {
     expect(item.on_failure).toBeNull();
   });
 
-  it('updates schema version to 2', () => {
+  it('updates schema version past 2', () => {
     runMigrations(db);
-    expect(getCurrentVersion(db)).toBe(2);
+    expect(getCurrentVersion(db)).toBeGreaterThanOrEqual(2);
   });
 });
