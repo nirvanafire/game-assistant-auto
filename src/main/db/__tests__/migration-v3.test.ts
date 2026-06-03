@@ -1,6 +1,8 @@
-import type Database from 'better-sqlite3';
+import { describe, it, expect, beforeEach } from 'vitest';
+import Database from 'better-sqlite3';
+import { runMigrations, getCurrentVersion } from '../migrations';
 
-export function createSchema(db: Database.Database): void {
+function createV2Schema(db: Database.Database): void {
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
 
@@ -50,9 +52,7 @@ export function createSchema(db: Database.Database): void {
       config JSON NOT NULL,
       on_match JSON NOT NULL DEFAULT '{}',
       on_miss JSON NOT NULL DEFAULT '{}',
-      screenshot_before_match INTEGER DEFAULT 0,
-      realtime_match INTEGER DEFAULT 0,
-      cache_coordinates INTEGER DEFAULT 0
+      screenshot_before_match INTEGER DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS step_groups (
@@ -103,6 +103,60 @@ export function createSchema(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_task_group_runs_group ON task_group_runs(task_group_id);
     CREATE INDEX IF NOT EXISTS idx_network_logs_ts ON network_logs(timestamp);
 
-    INSERT OR IGNORE INTO schema_version (version) VALUES (3);
+    INSERT OR IGNORE INTO schema_version (version) VALUES (2);
   `);
 }
+
+describe('Migration v3', () => {
+  let db: Database.Database;
+
+  beforeEach(() => {
+    db = new Database(':memory:');
+    createV2Schema(db);
+  });
+
+  it('adds realtime_match and cache_coordinates columns to steps table', () => {
+    runMigrations(db);
+    const columns = db.prepare("PRAGMA table_info(steps)").all() as any[];
+    const colNames = columns.map((c: any) => c.name);
+    expect(colNames).toContain('realtime_match');
+    expect(colNames).toContain('cache_coordinates');
+  });
+
+  it('sets realtime_match from task settings.screenshotBeforeMatch', () => {
+    const taskId = 'task-1';
+    db.prepare(
+      "INSERT INTO tasks (id, name, status, settings, interrupt_handlers) VALUES (?, ?, ?, ?, ?)"
+    ).run(taskId, 'Test', 'idle', JSON.stringify({ screenshotBeforeMatch: true }), '[]');
+
+    db.prepare(
+      'INSERT INTO steps (id, task_id, type, "order", config, on_match, on_miss, screenshot_before_match) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    ).run('step-1', taskId, 'IMAGE_MATCH', 1, '{}', '{}', '{}', 0);
+
+    runMigrations(db);
+
+    const step = db.prepare('SELECT realtime_match FROM steps WHERE id = ?').get('step-1') as any;
+    expect(step.realtime_match).toBe(1);
+  });
+
+  it('sets cache_coordinates to 0 for existing steps', () => {
+    const taskId = 'task-1';
+    db.prepare(
+      "INSERT INTO tasks (id, name, status, settings, interrupt_handlers) VALUES (?, ?, ?, ?, ?)"
+    ).run(taskId, 'Test', 'idle', JSON.stringify({ screenshotBeforeMatch: false }), '[]');
+
+    db.prepare(
+      'INSERT INTO steps (id, task_id, type, "order", config, on_match, on_miss, screenshot_before_match) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    ).run('step-1', taskId, 'IMAGE_MATCH', 1, '{}', '{}', '{}', 0);
+
+    runMigrations(db);
+
+    const step = db.prepare('SELECT cache_coordinates FROM steps WHERE id = ?').get('step-1') as any;
+    expect(step.cache_coordinates).toBe(0);
+  });
+
+  it('updates schema version to 3', () => {
+    runMigrations(db);
+    expect(getCurrentVersion(db)).toBe(3);
+  });
+});

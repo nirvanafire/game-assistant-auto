@@ -18,6 +18,23 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    version: 3,
+    up: (db: Database.Database) => {
+      db.exec(`
+        ALTER TABLE steps ADD COLUMN realtime_match INTEGER DEFAULT 0;
+        ALTER TABLE steps ADD COLUMN cache_coordinates INTEGER DEFAULT 0;
+      `);
+
+      // Populate realtime_match from task settings
+      db.exec(`
+        UPDATE steps SET realtime_match = (
+          SELECT CASE WHEN json_extract(tasks.settings, '$.screenshotBeforeMatch') = 1 THEN 1 ELSE 0 END
+          FROM tasks WHERE tasks.id = steps.task_id
+        );
+      `);
+    },
+  },
 ];
 
 export function getCurrentVersion(db: Database.Database): number {
