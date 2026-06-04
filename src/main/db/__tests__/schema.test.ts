@@ -60,10 +60,10 @@ describe('createSchema', () => {
     expect(result).toBe(1);
   });
 
-  it('inserts initial schema version 3', () => {
+  it('inserts initial schema version 4', () => {
     createSchema(db);
 
     const row = db.prepare('SELECT version FROM schema_version').get() as { version: number };
-    expect(row.version).toBe(3);
+    expect(row.version).toBe(4);
   });
 });

@@ -13,27 +13,27 @@ describe('migrations', () => {
 
   it('getCurrentVersion returns schema version', () => {
     const version = getCurrentVersion(db);
-    expect(version).toBe(3);
+    expect(version).toBe(4);
   });
 
   it('returns current version when no migrations needed', () => {
     const version = getCurrentVersion(db);
-    expect(version).toBe(3);
+    expect(version).toBe(4);
 
     runMigrations(db);
-    expect(getCurrentVersion(db)).toBe(3);
+    expect(getCurrentVersion(db)).toBe(4);
   });
 
   it('skips already-applied migrations', () => {
     const migrations: Migration[] = [
       {
-        version: 3,
+        version: 5,
         up: (db: Database.Database) => {
           db.exec(`ALTER TABLE tasks ADD COLUMN priority INTEGER DEFAULT 0`);
         },
       },
       {
-        version: 4,
+        version: 6,
         up: (db: Database.Database) => {
           db.exec(`ALTER TABLE tasks ADD COLUMN tags JSON DEFAULT '[]'`);
         },
@@ -41,28 +41,28 @@ describe('migrations', () => {
     ];
 
     runMigrations(db, migrations);
-    expect(getCurrentVersion(db)).toBe(4);
+    expect(getCurrentVersion(db)).toBe(6);
 
     // Run again - should be a no-op
     runMigrations(db, migrations);
-    expect(getCurrentVersion(db)).toBe(4);
+    expect(getCurrentVersion(db)).toBe(6);
   });
 
   it('runs additional migrations when available', () => {
     const migrations: Migration[] = [
       {
-        version: 4,
+        version: 5,
         up: (db: Database.Database) => {
           db.exec(`ALTER TABLE tasks ADD COLUMN priority INTEGER DEFAULT 0`);
         },
       },
     ];
 
-    expect(getCurrentVersion(db)).toBe(3);
+    expect(getCurrentVersion(db)).toBe(4);
 
     runMigrations(db, migrations);
 
-    expect(getCurrentVersion(db)).toBe(4);
+    expect(getCurrentVersion(db)).toBe(5);
 
     // Verify the column was added
     const columns = db.prepare(`PRAGMA table_info(tasks)`).all() as Array<{ name: string }>;

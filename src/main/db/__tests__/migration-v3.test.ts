@@ -155,8 +155,8 @@ describe('Migration v3', () => {
     expect(step.cache_coordinates).toBe(0);
   });
 
-  it('updates schema version to 3', () => {
+  it('updates schema version past 3', () => {
     runMigrations(db);
-    expect(getCurrentVersion(db)).toBe(3);
+    expect(getCurrentVersion(db)).toBeGreaterThanOrEqual(3);
   });
 });
