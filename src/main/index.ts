@@ -111,7 +111,7 @@ app.whenReady().then(() => {
   // Browser screenshot handler — capture webview content and save to caches
   registry.handle(IPC_CHANNELS.BROWSER_CAPTURE_SCREENSHOT, async () => {
     const cachesDir = path.join(app.getPath('userData'), 'caches');
-    fs.mkdirSync(cachesDir, { recursive: true });
+    await fs.promises.mkdir(cachesDir, { recursive: true });
 
     // Find webview webContents
     const allWebContents = (await import('electron')).webContents.getAllWebContents();
@@ -129,7 +129,7 @@ app.whenReady().then(() => {
     const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const filename = `screenshot-${timestamp}.png`;
     const filePath = path.join(cachesDir, filename);
-    fs.writeFileSync(filePath, buffer);
+    await fs.promises.writeFile(filePath, buffer);
 
     // Return base64 data URL
     return `data:image/png;base64,${buffer.toString('base64')}`;
