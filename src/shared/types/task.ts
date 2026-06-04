@@ -4,7 +4,7 @@ export type StepType = 'IMAGE_MATCH' | 'IMAGE_GROUP' | 'CLICK';
 
 export interface StepTransition {
   nextStepId?: string;
-  action?: 'END_TASK' | 'END_STEP_GROUP';
+  action?: 'END_TASK' | 'END_STEP_GROUP' | 'NEXT_STEP';
 }
 
 export interface ImageMatchConfig {

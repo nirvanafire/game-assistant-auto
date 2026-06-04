@@ -2,6 +2,11 @@ import { describe, it, expect } from 'vitest';
 import type { Step, StepTransition, StepType } from '../task';
 
 describe('Step types', () => {
+  it('StepTransition includes NEXT_STEP action', () => {
+    const transition: StepTransition = { action: 'NEXT_STEP' };
+    expect(transition.action).toBe('NEXT_STEP');
+  });
+
   it('StepTransition includes END_STEP_GROUP action', () => {
     const transition: StepTransition = { action: 'END_STEP_GROUP' };
     expect(transition.action).toBe('END_STEP_GROUP');
