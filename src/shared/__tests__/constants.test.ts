@@ -6,6 +6,10 @@ describe('IPC_CHANNELS', () => {
     expect(IPC_CHANNELS.BROWSER_RESIZED).toBe('browser:resized');
   });
 
+  it('includes BROWSER_CAPTURE_SCREENSHOT channel', () => {
+    expect(IPC_CHANNELS.BROWSER_CAPTURE_SCREENSHOT).toBe('browser:capture-screenshot');
+  });
+
   it('includes TASK_CLEAR_COORDINATE_CACHE channel', () => {
     expect(IPC_CHANNELS.TASK_CLEAR_COORDINATE_CACHE).toBe('task:clear-coordinate-cache');
   });

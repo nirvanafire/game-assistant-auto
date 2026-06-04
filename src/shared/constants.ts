@@ -32,6 +32,7 @@ export const IPC_CHANNELS = {
   NETWORK_GET_LOGS: 'network:get-logs',
   NETWORK_EXPORT: 'network:export',
   CAPTURE_SCREENSHOT: 'capture:screenshot',
+  BROWSER_CAPTURE_SCREENSHOT: 'browser:capture-screenshot',
   CAPTURE_CLICK: 'capture:click',
   CAPTURE_UPDATED: 'capture:updated',
   LOG_ENTRY: 'log:entry',
