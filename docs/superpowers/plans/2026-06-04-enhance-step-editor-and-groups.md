@@ -8,6 +8,13 @@
 
 **技术栈：** Electron, TypeScript, React 19, Ant Design 6, better-sqlite3, Vitest
 
+**排除范围（来自 proposal.md）：**
+- 不改动 Python 匹配服务或匹配协议
+- 不支持步骤在组间拖拽
+- 不做孤儿模板图片清理工具
+- 不在步骤组内并行执行步骤
+- 不改动任务组编排、中断处理器、网络监控或日志
+
 ---
 
 ## 文件结构
@@ -19,22 +26,24 @@
 - `src/main/ipc/step-group.ts` — 步骤组 IPC 处理器
 - `src/main/ipc/__tests__/image-ipc.test.ts` — 图片 IPC 测试
 - `src/main/ipc/__tests__/step-group-ipc.test.ts` — 步骤组 IPC 测试
+- `src/main/services/__tests__/transition-semantics.test.ts` — 引擎转场语义测试
+- `src/main/db/__tests__/migration-v4.test.ts` — 迁移测试
 - `src/renderer/components/Assistant/StepGroupCard.tsx` — 步骤组卡片组件
 
 ### 修改文件
 - `src/shared/types/task.ts` — StepTransition.action 新增 `'NEXT_STEP'`
+- `src/shared/types/__tests__/task-types.test.ts` — 更新测试
 - `src/shared/constants.ts` — 新增 IPC 通道常量
 - `src/main/db/migrations.ts` — 新增 migration v4
 - `src/main/db/schema.ts` — schema 版本更新到 4
 - `src/main/services/task-engine.ts` — NEXT_STEP 分支 + undefined 停止语义
 - `src/main/services/storage.ts` — 新增步骤组 CRUD 方法
 - `src/main/index.ts` — 注册新 IPC 处理器、初始化 template-storage
-- `src/main/ipc/task.ts` — 注册步骤组 IPC 处理器
 - `src/renderer/App.tsx` — 移除 task-editor/group-editor 视图分支
 - `src/renderer/components/Assistant/StepEditor.tsx` — 开关横排、IMAGE_GROUP 编辑器、图片选择按钮、NEXT_STEP 选项、新默认值
 - `src/renderer/components/Assistant/TaskEditor.tsx` — 步骤组管理 UI
-- `src/renderer/components/Assistant/TaskList.tsx` — 移除 onEdit prop、清理 Drawer 逻辑
-- `src/renderer/components/Assistant/TaskGroupList.tsx` — 移除 onEdit prop、清理 Drawer 逻辑
+- `src/renderer/components/Assistant/TaskList.tsx` — 移除 onEdit prop
+- `src/renderer/components/Assistant/TaskGroupList.tsx` — 移除 onEdit prop
 
 ---
 
@@ -42,9 +51,9 @@
 
 **文件：**
 - 修改：`src/shared/types/task.ts`
-- 测试：`src/shared/types/__tests__/task-types.test.ts`（已有，更新）
+- 测试：`src/shared/types/__tests__/task-types.test.ts`
 
-- [ ] **Step 1: 更新测试**
+- [ ] **Step 1: 写失败测试**
 
 在 `src/shared/types/__tests__/task-types.test.ts` 中添加：
 
@@ -60,7 +69,7 @@ it('StepTransition includes NEXT_STEP action', () => {
 运行：`npx vitest run src/shared/types/__tests__/task-types.test.ts`
 预期：FAIL — `'NEXT_STEP'` 不在 StepTransition.action 的联合类型中
 
-- [ ] **Step 3: 实现**
+- [ ] **Step 3: 写最小实现**
 
 修改 `src/shared/types/task.ts` 中的 `StepTransition`：
 
@@ -76,7 +85,11 @@ export interface StepTransition {
 运行：`npx vitest run src/shared/types/__tests__/task-types.test.ts`
 预期：PASS
 
-- [ ] **Step 5: 提交**
+- [ ] **Step 5: 重构**
+
+检查是否有其他文件引用了 `StepTransition.action` 的类型定义需要更新。确认 TypeScript 编译无错误。
+
+- [ ] **Step 6: 提交**
 
 ```bash
 git add src/shared/types/task.ts src/shared/types/__tests__/task-types.test.ts
@@ -91,7 +104,76 @@ git commit -m "feat: add NEXT_STEP action to StepTransition"
 - 修改：`src/shared/constants.ts`
 - 修改：`src/main/services/storage.ts`
 
-- [ ] **Step 1: 添加 IPC 通道常量**
+- [ ] **Step 1: 写失败测试**
+
+在 `src/shared/__tests__/constants.test.ts`（已存在则更新）中添加：
+
+```typescript
+it('includes IMAGE_PICK channel', () => {
+  expect(IPC_CHANNELS.IMAGE_PICK).toBe('image:pick');
+});
+it('includes IMAGE_NORMALIZE channel', () => {
+  expect(IPC_CHANNELS.IMAGE_NORMALIZE).toBe('image:normalize');
+});
+it('includes STEP_GROUP_LIST channel', () => {
+  expect(IPC_CHANNELS.STEP_GROUP_LIST).toBe('step-group:list');
+});
+it('includes STEP_GROUP_CREATE channel', () => {
+  expect(IPC_CHANNELS.STEP_GROUP_CREATE).toBe('step-group:create');
+});
+it('includes STEP_GROUP_UPDATE channel', () => {
+  expect(IPC_CHANNELS.STEP_GROUP_UPDATE).toBe('step-group:update');
+});
+it('includes STEP_GROUP_DELETE channel', () => {
+  expect(IPC_CHANNELS.STEP_GROUP_DELETE).toBe('step-group:delete');
+});
+```
+
+在 `src/main/services/__tests__/storage.test.ts`（已存在则更新）中添加：
+
+```typescript
+it('creates and lists step groups', () => {
+  const task = storage.createTask({ name: 'Test' });
+  const group = storage.createStepGroup({ taskId: task.id, name: 'Loop', loopCount: 3 });
+  expect(group.name).toBe('Loop');
+  expect(group.loopCount).toBe(3);
+  const groups = storage.listStepGroupsByTask(task.id);
+  expect(groups).toHaveLength(1);
+  expect(groups[0].id).toBe(group.id);
+});
+
+it('updates step group', () => {
+  const task = storage.createTask({ name: 'Test' });
+  const group = storage.createStepGroup({ taskId: task.id, name: 'Old', loopCount: 1 });
+  storage.updateStepGroup(group.id, { name: 'New', loopCount: 5 });
+  const updated = storage.listStepGroupsByTask(task.id)[0];
+  expect(updated.name).toBe('New');
+  expect(updated.loopCount).toBe(5);
+});
+
+it('delete step group ungroups steps first', () => {
+  const task = storage.createTask({ name: 'Test' });
+  const group = storage.createStepGroup({ taskId: task.id, name: 'G', loopCount: 2 });
+  const step = storage.createStep({
+    taskId: task.id, type: 'IMAGE_MATCH', order: 1, groupId: group.id,
+    config: { templatePath: '/a.png', threshold: 0.8, delayMs: 0, retryCount: 0, retryIntervalMs: 0, scaleRange: [0.5, 2] },
+    onMatch: { action: 'NEXT_STEP' }, onMiss: { action: 'END_TASK' },
+    screenshotBeforeMatch: false, realtimeMatch: false, cacheCoordinates: false,
+  });
+  storage.deleteStepGroup(group.id);
+  const groups = storage.listStepGroupsByTask(task.id);
+  expect(groups).toHaveLength(0);
+  const steps = storage.listSteps(task.id);
+  expect(steps[0].groupId).toBeUndefined();
+});
+```
+
+- [ ] **Step 2: 运行测试确认失败**
+
+运行：`npx vitest run src/shared/__tests__/constants.test.ts src/main/services/__tests__/storage.test.ts`
+预期：FAIL — 新通道常量和存储方法不存在
+
+- [ ] **Step 3: 写最小实现**
 
 在 `src/shared/constants.ts` 的 `IPC_CHANNELS` 对象中添加：
 
@@ -103,8 +185,6 @@ git commit -m "feat: add NEXT_STEP action to StepTransition"
   STEP_GROUP_UPDATE: 'step-group:update',
   STEP_GROUP_DELETE: 'step-group:delete',
 ```
-
-- [ ] **Step 2: 在 StorageService 中添加步骤组 CRUD 方法**
 
 在 `src/main/services/storage.ts` 的 `StorageService` 类中添加：
 
@@ -136,20 +216,24 @@ git commit -m "feat: add NEXT_STEP action to StepTransition"
   }
 
   deleteStepGroup(id: string): void {
-    // Ungroup steps first
-    this.db.prepare(
-      'UPDATE steps SET group_id = NULL WHERE group_id = ?'
-    ).run(id);
-    this.db.prepare(
-      'DELETE FROM step_groups WHERE id = ?'
-    ).run(id);
+    this.db.prepare('UPDATE steps SET group_id = NULL WHERE group_id = ?').run(id);
+    this.db.prepare('DELETE FROM step_groups WHERE id = ?').run(id);
   }
 ```
 
-- [ ] **Step 3: 提交**
+- [ ] **Step 4: 运行测试确认通过**
+
+运行：`npx vitest run src/shared/__tests__/constants.test.ts src/main/services/__tests__/storage.test.ts`
+预期：PASS
+
+- [ ] **Step 5: 重构**
+
+确认 `listStepGroupsByTask` 与已有的 `listStepGroups` 方法名不冲突。检查 `StepGroup` 类型的导入是否正确。
+
+- [ ] **Step 6: 提交**
 
 ```bash
-git add src/shared/constants.ts src/main/services/storage.ts
+git add src/shared/constants.ts src/main/services/storage.ts src/shared/__tests__/constants.test.ts src/main/services/__tests__/storage.test.ts
 git commit -m "feat: add IPC channel constants and step-group CRUD in StorageService"
 ```
 
@@ -161,11 +245,11 @@ git commit -m "feat: add IPC channel constants and step-group CRUD in StorageSer
 - 创建：`src/main/services/template-storage.ts`
 - 测试：`src/main/services/__tests__/template-storage.test.ts`
 
-- [ ] **Step 1: 编写测试**
+- [ ] **Step 1: 写失败测试**
 
 ```typescript
 // src/main/services/__tests__/template-storage.test.ts
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -229,7 +313,7 @@ describe('TemplateStorage', () => {
 运行：`npx vitest run src/main/services/__tests__/template-storage.test.ts`
 预期：FAIL — `template-storage` 模块不存在
 
-- [ ] **Step 3: 实现**
+- [ ] **Step 3: 写最小实现**
 
 ```typescript
 // src/main/services/template-storage.ts
@@ -260,11 +344,9 @@ export class TemplateStorage {
     if (this.isManaged(resolved)) {
       return resolved;
     }
-
     if (!fs.existsSync(resolved)) {
       throw new Error(`Source file not found: ${resolved}`);
     }
-
     const ext = path.extname(resolved);
     const newName = `${uuidv4()}${ext}`;
     const dest = path.join(this.templatesDir, newName);
@@ -279,7 +361,11 @@ export class TemplateStorage {
 运行：`npx vitest run src/main/services/__tests__/template-storage.test.ts`
 预期：PASS
 
-- [ ] **Step 5: 提交**
+- [ ] **Step 5: 重构**
+
+确认 `path.resolve` 在 Windows 上的行为与测试一致。检查 `uuid` 依赖是否已安装。
+
+- [ ] **Step 6: 提交**
 
 ```bash
 git add src/main/services/template-storage.ts src/main/services/__tests__/template-storage.test.ts
@@ -296,7 +382,7 @@ git commit -m "feat: add TemplateStorage service for image persistence"
 - 修改：`src/main/index.ts`（注册处理器）
 - 测试：`src/main/ipc/__tests__/image-ipc.test.ts`
 
-- [ ] **Step 1: 编写图片 IPC 测试**
+- [ ] **Step 1: 写失败测试**
 
 ```typescript
 // src/main/ipc/__tests__/image-ipc.test.ts
@@ -342,7 +428,7 @@ describe('Image IPC handlers', () => {
 运行：`npx vitest run src/main/ipc/__tests__/image-ipc.test.ts`
 预期：FAIL — `image` 模块不存在
 
-- [ ] **Step 3: 实现图片 IPC**
+- [ ] **Step 3: 写最小实现**
 
 ```typescript
 // src/main/ipc/image.ts
@@ -373,8 +459,6 @@ export function createImageIpcHandlers(
 }
 ```
 
-- [ ] **Step 4: 实现步骤组 IPC**
-
 ```typescript
 // src/main/ipc/step-group.ts
 import { IPC_CHANNELS } from '@shared/constants';
@@ -404,19 +488,18 @@ export function createStepGroupIpcHandlers(
 }
 ```
 
-- [ ] **Step 5: 在 main/index.ts 中注册**
+在 `src/main/index.ts` 中注册：在 `app.whenReady()` 内、创建 `StorageService` 之后，创建 `TemplateStorage` 实例并调用 `init()`，然后调用 `createImageIpcHandlers(registry, templateStorage)` 和 `createStepGroupIpcHandlers(registry, storage)`。
 
-在 `src/main/index.ts` 中：
-1. 在 `app.whenReady()` 内、创建 `StorageService` 之后，创建 `TemplateStorage` 实例并调用 `init()`
-2. 调用 `createImageIpcHandlers(registry, templateStorage)`
-3. 调用 `createStepGroupIpcHandlers(registry, storage)`
-
-- [ ] **Step 6: 运行测试确认通过**
+- [ ] **Step 4: 运行测试确认通过**
 
 运行：`npx vitest run src/main/ipc/__tests__/image-ipc.test.ts`
 预期：PASS
 
-- [ ] **Step 7: 提交**
+- [ ] **Step 5: 重构**
+
+确认 `IpcRegistry` 类型与 `src/main/ipc/registry.ts` 中的导出一致。检查 `main/index.ts` 中的导入顺序和初始化顺序。
+
+- [ ] **Step 6: 提交**
 
 ```bash
 git add src/main/ipc/image.ts src/main/ipc/step-group.ts src/main/index.ts src/main/ipc/__tests__/image-ipc.test.ts
@@ -432,7 +515,7 @@ git commit -m "feat: add image and step-group IPC handlers"
 - 修改：`src/main/db/schema.ts`
 - 测试：`src/main/db/__tests__/migration-v4.test.ts`
 
-- [ ] **Step 1: 编写测试**
+- [ ] **Step 1: 写失败测试**
 
 ```typescript
 // src/main/db/__tests__/migration-v4.test.ts
@@ -447,81 +530,45 @@ describe('Migration v4', () => {
   beforeEach(() => {
     db = new Database(':memory:');
     createSchema(db);
-    // Run up to v3 first
-    runMigrations(db);
+    runMigrations(db); // Run up to v3
   });
 
   it('backfills empty on_match for IMAGE_MATCH to NEXT_STEP', () => {
-    const taskId = 't1';
-    db.prepare(
-      "INSERT INTO tasks (id, name, status, settings, interrupt_handlers) VALUES (?, ?, ?, ?, ?)"
-    ).run(taskId, 'Test', 'idle', '{}', '[]');
-    db.prepare(
-      'INSERT INTO steps (id, task_id, type, "order", config, on_match, on_miss, screenshot_before_match, realtime_match, cache_coordinates) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    ).run('s1', taskId, 'IMAGE_MATCH', 1, '{}', '{}', '{}', 0, 0, 0);
-
+    db.prepare("INSERT INTO tasks (id, name, status, settings, interrupt_handlers) VALUES (?, ?, ?, ?, ?)").run('t1', 'Test', 'idle', '{}', '[]');
+    db.prepare('INSERT INTO steps (id, task_id, type, "order", config, on_match, on_miss, screenshot_before_match, realtime_match, cache_coordinates) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run('s1', 't1', 'IMAGE_MATCH', 1, '{}', '{}', '{}', 0, 0, 0);
     runMigrations(db);
-
     const row = db.prepare('SELECT on_match FROM steps WHERE id = ?').get('s1') as any;
     expect(JSON.parse(row.on_match)).toEqual({ action: 'NEXT_STEP' });
   });
 
   it('backfills empty on_miss for IMAGE_GROUP to NEXT_STEP', () => {
-    const taskId = 't1';
-    db.prepare(
-      "INSERT INTO tasks (id, name, status, settings, interrupt_handlers) VALUES (?, ?, ?, ?, ?)"
-    ).run(taskId, 'Test', 'idle', '{}', '[]');
-    db.prepare(
-      'INSERT INTO steps (id, task_id, type, "order", config, on_match, on_miss, screenshot_before_match, realtime_match, cache_coordinates) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    ).run('s1', taskId, 'IMAGE_GROUP', 1, '{}', '{}', '{}', 0, 0, 0);
-
+    db.prepare("INSERT INTO tasks (id, name, status, settings, interrupt_handlers) VALUES (?, ?, ?, ?, ?)").run('t1', 'Test', 'idle', '{}', '[]');
+    db.prepare('INSERT INTO steps (id, task_id, type, "order", config, on_match, on_miss, screenshot_before_match, realtime_match, cache_coordinates) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run('s1', 't1', 'IMAGE_GROUP', 1, '{}', '{}', '{}', 0, 0, 0);
     runMigrations(db);
-
     const row = db.prepare('SELECT on_miss FROM steps WHERE id = ?').get('s1') as any;
     expect(JSON.parse(row.on_miss)).toEqual({ action: 'NEXT_STEP' });
   });
 
   it('does not modify CLICK rows', () => {
-    const taskId = 't1';
-    db.prepare(
-      "INSERT INTO tasks (id, name, status, settings, interrupt_handlers) VALUES (?, ?, ?, ?, ?)"
-    ).run(taskId, 'Test', 'idle', '{}', '[]');
-    db.prepare(
-      'INSERT INTO steps (id, task_id, type, "order", config, on_match, on_miss, screenshot_before_match, realtime_match, cache_coordinates) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    ).run('s1', taskId, 'CLICK', 1, '{}', '{}', '{}', 0, 0, 0);
-
+    db.prepare("INSERT INTO tasks (id, name, status, settings, interrupt_handlers) VALUES (?, ?, ?, ?, ?)").run('t1', 'Test', 'idle', '{}', '[]');
+    db.prepare('INSERT INTO steps (id, task_id, type, "order", config, on_match, on_miss, screenshot_before_match, realtime_match, cache_coordinates) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run('s1', 't1', 'CLICK', 1, '{}', '{}', '{}', 0, 0, 0);
     runMigrations(db);
-
     const row = db.prepare('SELECT on_match FROM steps WHERE id = ?').get('s1') as any;
     expect(row.on_match).toBe('{}');
   });
 
   it('does not modify rows with existing action', () => {
-    const taskId = 't1';
-    db.prepare(
-      "INSERT INTO tasks (id, name, status, settings, interrupt_handlers) VALUES (?, ?, ?, ?, ?)"
-    ).run(taskId, 'Test', 'idle', '{}', '[]');
-    db.prepare(
-      'INSERT INTO steps (id, task_id, type, "order", config, on_match, on_miss, screenshot_before_match, realtime_match, cache_coordinates) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    ).run('s1', taskId, 'IMAGE_MATCH', 1, '{}', '{"action":"END_TASK"}', '{}', 0, 0, 0);
-
+    db.prepare("INSERT INTO tasks (id, name, status, settings, interrupt_handlers) VALUES (?, ?, ?, ?, ?)").run('t1', 'Test', 'idle', '{}', '[]');
+    db.prepare('INSERT INTO steps (id, task_id, type, "order", config, on_match, on_miss, screenshot_before_match, realtime_match, cache_coordinates) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run('s1', 't1', 'IMAGE_MATCH', 1, '{}', '{"action":"END_TASK"}', '{}', 0, 0, 0);
     runMigrations(db);
-
     const row = db.prepare('SELECT on_match FROM steps WHERE id = ?').get('s1') as any;
     expect(JSON.parse(row.on_match)).toEqual({ action: 'END_TASK' });
   });
 
   it('does not modify rows with nextStepId', () => {
-    const taskId = 't1';
-    db.prepare(
-      "INSERT INTO tasks (id, name, status, settings, interrupt_handlers) VALUES (?, ?, ?, ?, ?)"
-    ).run(taskId, 'Test', 'idle', '{}', '[]');
-    db.prepare(
-      'INSERT INTO steps (id, task_id, type, "order", config, on_match, on_miss, screenshot_before_match, realtime_match, cache_coordinates) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    ).run('s1', taskId, 'IMAGE_MATCH', 1, '{}', '{"nextStepId":"s3"}', '{}', 0, 0, 0);
-
+    db.prepare("INSERT INTO tasks (id, name, status, settings, interrupt_handlers) VALUES (?, ?, ?, ?, ?)").run('t1', 'Test', 'idle', '{}', '[]');
+    db.prepare('INSERT INTO steps (id, task_id, type, "order", config, on_match, on_miss, screenshot_before_match, realtime_match, cache_coordinates) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run('s1', 't1', 'IMAGE_MATCH', 1, '{}', '{"nextStepId":"s3"}', '{}', 0, 0, 0);
     runMigrations(db);
-
     const row = db.prepare('SELECT on_match FROM steps WHERE id = ?').get('s1') as any;
     expect(JSON.parse(row.on_match)).toEqual({ nextStepId: 's3' });
   });
@@ -536,9 +583,9 @@ describe('Migration v4', () => {
 - [ ] **Step 2: 运行测试确认失败**
 
 运行：`npx vitest run src/main/db/__tests__/migration-v4.test.ts`
-预期：FAIL — migration v4 不存在
+预期：FAIL — migration v4 不存在，schema version 仍为 3
 
-- [ ] **Step 3: 实现 migration v4**
+- [ ] **Step 3: 写最小实现**
 
 在 `src/main/db/migrations.ts` 的 migrations 数组末尾添加：
 
@@ -547,39 +594,33 @@ describe('Migration v4', () => {
     version: 4,
     up: (db: Database.Database) => {
       db.exec(`
-        UPDATE steps
-        SET on_match = '{"action":"NEXT_STEP"}'
+        UPDATE steps SET on_match = '{"action":"NEXT_STEP"}'
         WHERE type IN ('IMAGE_MATCH', 'IMAGE_GROUP')
-          AND (
-            on_match IS NULL
-            OR on_match = ''
-            OR on_match = '{}'
-            OR (json_extract(on_match, '$.action') IS NULL AND json_extract(on_match, '$.nextStepId') IS NULL)
-          );
+          AND (on_match IS NULL OR on_match = '' OR on_match = '{}'
+            OR (json_extract(on_match, '$.action') IS NULL AND json_extract(on_match, '$.nextStepId') IS NULL));
       `);
       db.exec(`
-        UPDATE steps
-        SET on_miss = '{"action":"NEXT_STEP"}'
+        UPDATE steps SET on_miss = '{"action":"NEXT_STEP"}'
         WHERE type IN ('IMAGE_MATCH', 'IMAGE_GROUP')
-          AND (
-            on_miss IS NULL
-            OR on_miss = ''
-            OR on_miss = '{}'
-            OR (json_extract(on_miss, '$.action') IS NULL AND json_extract(on_miss, '$.nextStepId') IS NULL)
-          );
+          AND (on_miss IS NULL OR on_miss = '' OR on_miss = '{}'
+            OR (json_extract(on_miss, '$.action') IS NULL AND json_extract(on_miss, '$.nextStepId') IS NULL));
       `);
     },
   },
 ```
 
-在 `src/main/db/schema.ts` 中将 `INSERT OR IGNORE INTO schema_version (version) VALUES (3)` 改为 `VALUES (4)`。
+在 `src/main/db/schema.ts` 中将 `VALUES (3)` 改为 `VALUES (4)`。
 
 - [ ] **Step 4: 运行测试确认通过**
 
 运行：`npx vitest run src/main/db/__tests__/migration-v4.test.ts`
 预期：PASS
 
-- [ ] **Step 5: 提交**
+- [ ] **Step 5: 重构**
+
+确认 migration v4 的 SQL 在 NULL、空字符串、`'{}'`、部分 JSON 等边界条件下都能正确处理。检查 schema.ts 中的版本号是否只有一处需要更新。
+
+- [ ] **Step 6: 提交**
 
 ```bash
 git add src/main/db/migrations.ts src/main/db/schema.ts src/main/db/__tests__/migration-v4.test.ts
@@ -594,7 +635,7 @@ git commit -m "feat: add migration v4 to backfill NEXT_STEP transitions"
 - 修改：`src/main/services/task-engine.ts`
 - 测试：`src/main/services/__tests__/transition-semantics.test.ts`
 
-- [ ] **Step 1: 编写测试**
+- [ ] **Step 1: 写失败测试**
 
 ```typescript
 // src/main/services/__tests__/transition-semantics.test.ts
@@ -647,7 +688,6 @@ describe('TaskEngine transition semantics', () => {
       { id: 's2', taskId: 't1', type: 'IMAGE_MATCH', order: 2, config: { templatePath: '/b.png', threshold: 0.8, delayMs: 0, retryCount: 0, retryIntervalMs: 0, scaleRange: [0.5, 2] }, onMatch: { action: 'END_TASK' }, onMiss: { action: 'END_TASK' }, screenshotBeforeMatch: true, realtimeMatch: true, cacheCoordinates: false },
     ]);
     await engine.start('t1');
-    // s1 matches but onMatch is undefined → halt, s2 never runs
     expect(mockMatcher.match).toHaveBeenCalledTimes(1);
     expect(engine.getStatus('t1')).toBe('completed');
   });
@@ -659,7 +699,6 @@ describe('TaskEngine transition semantics', () => {
       { id: 's2', taskId: 't1', type: 'IMAGE_MATCH', order: 2, config: { templatePath: '/b.png', threshold: 0.8, delayMs: 0, retryCount: 0, retryIntervalMs: 0, scaleRange: [0.5, 2] }, onMatch: { action: 'END_TASK' }, onMiss: { action: 'END_TASK' }, screenshotBeforeMatch: true, realtimeMatch: true, cacheCoordinates: false },
     ]);
     await engine.start('t1');
-    // s1 misses, onMiss undefined → halt, s2 never runs
     expect(mockMatcher.match).toHaveBeenCalledTimes(1);
     expect(engine.getStatus('t1')).toBe('completed');
   });
@@ -683,11 +722,11 @@ describe('TaskEngine transition semantics', () => {
 运行：`npx vitest run src/main/services/__tests__/transition-semantics.test.ts`
 预期：FAIL — 当前引擎对 undefined 转场仍执行 stepIndex++
 
-- [ ] **Step 3: 修改 TaskEngine 引擎逻辑**
+- [ ] **Step 3: 写最小实现**
 
-修改 `src/main/services/task-engine.ts` 中处理转场的逻辑。核心改动：
+修改 `src/main/services/task-engine.ts` 中处理转场的逻辑。
 
-在非组步骤的转场处理中（当前是 `else` 分支），将：
+在非组步骤的转场处理中，将：
 
 ```typescript
 if (transition?.action === 'END_TASK') { ... }
@@ -726,7 +765,9 @@ if (transition?.nextStepId) {
 运行：`npx vitest run src/main/services/__tests__/transition-semantics.test.ts`
 预期：PASS
 
-- [ ] **Step 5: 运行全部 TaskEngine 测试确认无回归**
+- [ ] **Step 5: 重构**
+
+运行全部 TaskEngine 测试确认无回归。检查组内步骤的转场处理是否也正确应用了 NEXT_STEP 和 undefined 语义。
 
 运行：`npx vitest run src/main/services/__tests__/`
 预期：ALL PASS
@@ -740,231 +781,349 @@ git commit -m "feat: implement NEXT_STEP and undefined-halt transition semantics
 
 ---
 
-## Task 7: StepEditor — 开关横排、IMAGE_GROUP 编辑器、图片选择、转场默认值
+## Task 7: StepEditor — 开关横排 + CLICK 隐藏 + 新默认值 + 转场选项
 
 **文件：**
 - 修改：`src/renderer/components/Assistant/StepEditor.tsx`
 
-本任务是最大的渲染层改动。按子功能拆分为步骤。
+- [ ] **Step 1: 写失败测试**
 
-- [ ] **Step 1: 更新 STEP_TYPE_LABELS 和 TRANSITION_ACTIONS**
+在 `src/renderer/components/Assistant/__tests__/StepEditor-updates.test.tsx` 中添加：
 
-将类型 Select 的标签从 `'IMAGE_GROUP' → '图像组'` 改为 `'IMAGE_GROUP' → '图像组匹配'`。
-
-更新 TRANSITION_ACTIONS：
 ```typescript
-const TRANSITION_ACTIONS = [
-  { label: '（无）', value: undefined },
-  { label: '下一个步骤', value: 'NEXT_STEP' },
-  { label: '结束任务', value: 'END_TASK' },
-  { label: '结束步骤组', value: 'END_STEP_GROUP' },
-];
+it('shows horizontal toggle row for IMAGE_MATCH', () => {
+  render(<StepEditor taskId="t1" onSave={vi.fn()} onCancel={vi.fn()} />);
+  expect(screen.getByText('全新截图')).toBeTruthy();
+  expect(screen.getByText('实时比对')).toBeTruthy();
+  expect(screen.getByText('缓存坐标')).toBeTruthy();
+});
+
+it('hides all toggles for CLICK type', () => {
+  render(<StepEditor taskId="t1" onSave={vi.fn()} onCancel={vi.fn()} />);
+  const typeSelect = screen.getByLabelText('类型');
+  fireEvent.mouseDown(typeSelect);
+  fireEvent.click(screen.getByText('点击'));
+  expect(screen.queryByText('全新截图')).toBeNull();
+  expect(screen.queryByText('实时比对')).toBeNull();
+  expect(screen.queryByText('缓存坐标')).toBeNull();
+});
+
+it('defaults cacheCoordinates to true for new steps', () => {
+  render(<StepEditor taskId="t1" onSave={vi.fn()} onCancel={vi.fn()} />);
+  const switch_ = screen.getByText('缓存坐标').closest('.ant-form-item')?.querySelector('.ant-switch');
+  expect(switch_?.classList.contains('ant-switch-checked')).toBe(true);
+});
+
+it('defaults onMatch to NEXT_STEP for new steps', () => {
+  render(<StepEditor taskId="t1" onSave={vi.fn()} onCancel={vi.fn()} />);
+  expect(screen.getByText('下一个步骤')).toBeTruthy();
+});
+
+it('shows NEXT_STEP option in transition select', () => {
+  render(<StepEditor taskId="t1" onSave={vi.fn()} onCancel={vi.fn()} />);
+  const select = screen.getByText('匹配时').closest('.ant-card')?.querySelector('.ant-select');
+  expect(select).toBeTruthy();
+});
 ```
 
-- [ ] **Step 2: 开关横排布局**
+- [ ] **Step 2: 运行测试确认失败**
 
-将三个开关（screenshotBeforeMatch、realtimeMatch、cacheCoordinates）用 `<Space style={{ width: '100%' }}>` 横排包裹，每个 `Form.Item` 设 `style={{ flex: 1 }}`。将 `cacheCoordinates` 的条件渲染从仅 IMAGE_MATCH 扩展为 IMAGE_MATCH 和 IMAGE_GROUP 共享。
+运行：`npx vitest run src/renderer/components/Assistant/__tests__/StepEditor-updates.test.tsx`
+预期：FAIL — 横排布局不存在、CLICK 仍显示开关、默认值不正确
 
-- [ ] **Step 3: CLICK 类型隐藏全部开关和转场卡片**
+- [ ] **Step 3: 写最小实现**
 
-将现有"仅 CLICK 隐藏转场卡片"的逻辑扩展为 CLICK 同时隐藏三个开关。用一个 `shouldUpdate` 条件包裹整个"开关行 + 转场卡片"区域。
+1. 更新 `TRANSITION_ACTIONS` 添加 `NEXT_STEP`
+2. 将三个开关用 `Space` 水平排列，`cacheCoordinates` 扩展到 IMAGE_GROUP
+3. CLICK 类型隐藏全部三个开关和转场卡片
+4. 新建步骤默认 `cacheCoordinates: true`、`onMatchAction: 'NEXT_STEP'`
+5. 类型 Select 标签改为"图像组匹配"
 
-- [ ] **Step 4: 更新 initialValues 默认值**
+- [ ] **Step 4: 运行测试确认通过**
 
-新建步骤时：
-- `cacheCoordinates: true`（原为 false）
-- `onMatchAction: 'NEXT_STEP'`（原为 undefined）
-- `onMissAction: undefined`（保持不变）
+运行：`npx vitest run src/renderer/components/Assistant/__tests__/StepEditor-updates.test.tsx`
+预期：PASS
 
-- [ ] **Step 5: 实现 IMAGE_GROUP 编辑器**
+- [ ] **Step 5: 重构**
 
-新增 `ImageGroupFields` 内部组件，使用 antd `Form.List` 渲染模板列表，每项含：
-- `label`：Input
-- `templatePath`：Input + "选择图片"按钮
-- `threshold`：InputNumber (0-1)
+检查 `END_STEP_GROUP` 在步骤无 `groupId` 时是否正确隐藏/禁用。确认横排布局在窄屏下换行正常。
 
-底部有"+ 添加模板"按钮。至少保留 1 项不可删除。
-
-在模板列表上方添加 `logic` Radio.Group（ALL/ANY）。
-
-在模板列表下方添加共享的 `delayMs`、`retryCount`、`retryIntervalMs`、`scaleRange` 字段。
-
-更新 `buildConfig` 函数，IMAGE_GROUP 分支返回从表单收集的 `templates` 数组和 `logic` 值。
-
-- [ ] **Step 6: 实现图片选择按钮**
-
-在 `ImageMatchFields` 和 `ImageGroupFields` 中，每个 `templatePath` 输入框旁添加"选择图片"按钮。
-
-按钮点击流程：
-1. 调用 `window.electronAPI.invoke('image:pick')` 获取 `{ sourcePath }`
-2. 如果 sourcePath 为 null（用户取消），返回
-3. 调用 `window.electronAPI.invoke('image:normalize', { sourcePath })` 获取 `{ savedPath }`
-4. 将 savedPath 写入对应的 `templatePath` 表单字段
-
-- [ ] **Step 7: 实现保存时归一化**
-
-修改 `handleSubmit` 为 async 函数。在调用 `onSave` 之前：
-1. 从 `values` 中收集所有 `templatePath` 值（IMAGE_MATCH: `values.templatePath` 单个；IMAGE_GROUP: `values.templates[].templatePath` 数组）
-2. 对每个路径调用 `window.electronAPI.invoke('image:normalize', { sourcePath })` 并 `await` 结果
-3. 如果任何调用失败（catch），在对应模板路径字段上调用 `form.setFields([{ name, errors: ['文件不存在或无法复制'] }])`，return 不调用 `onSave`
-4. 全部成功后，用返回的 `savedPath` 更新 `values` 对象中对应的路径字段，然后调用 `onSave`
-
-- [ ] **Step 8: 提交**
+- [ ] **Step 6: 提交**
 
 ```bash
-git add src/renderer/components/Assistant/StepEditor.tsx
-git commit -m "feat: overhaul StepEditor with horizontal toggles, IMAGE_GROUP editor, image picker, NEXT_STEP defaults"
+git add src/renderer/components/Assistant/StepEditor.tsx src/renderer/components/Assistant/__tests__/StepEditor-updates.test.tsx
+git commit -m "feat: horizontal toggles, CLICK hide, NEXT_STEP defaults, image-group-match label"
 ```
 
 ---
 
-## Task 8: TaskEditor — 步骤组管理
+## Task 8: StepEditor — IMAGE_GROUP 编辑器
+
+**文件：**
+- 修改：`src/renderer/components/Assistant/StepEditor.tsx`
+
+- [ ] **Step 1: 写失败测试**
+
+在 `src/renderer/components/Assistant/__tests__/StepEditor-updates.test.tsx` 中添加：
+
+```typescript
+it('shows template list for IMAGE_GROUP type', () => {
+  render(<StepEditor taskId="t1" onSave={vi.fn()} onCancel={vi.fn()} />);
+  const typeSelect = screen.getByLabelText('类型');
+  fireEvent.mouseDown(typeSelect);
+  fireEvent.click(screen.getByText('图像组匹配'));
+  expect(screen.getByText('+ 添加模板')).toBeTruthy();
+});
+
+it('shows ALL/ANY logic radio for IMAGE_GROUP', () => {
+  render(<StepEditor taskId="t1" onSave={vi.fn()} onCancel={vi.fn()} />);
+  const typeSelect = screen.getByLabelText('类型');
+  fireEvent.mouseDown(typeSelect);
+  fireEvent.click(screen.getByText('图像组匹配'));
+  expect(screen.getByText('满足其一（任一匹配）')).toBeTruthy();
+  expect(screen.getByText('同时满足（全部匹配）')).toBeTruthy();
+});
+
+it('defaults logic to ANY for IMAGE_GROUP', () => {
+  render(<StepEditor taskId="t1" onSave={vi.fn()} onCancel={vi.fn()} />);
+  const typeSelect = screen.getByLabelText('类型');
+  fireEvent.mouseDown(typeSelect);
+  fireEvent.click(screen.getByText('图像组匹配'));
+  const anyRadio = screen.getByLabelText('满足其一（任一匹配）');
+  expect(anyRadio.closest('.ant-radio-wrapper')?.classList.contains('ant-radio-wrapper-checked')).toBe(true);
+});
+```
+
+- [ ] **Step 2: 运行测试确认失败**
+
+运行：`npx vitest run src/renderer/components/Assistant/__tests__/StepEditor-updates.test.tsx`
+预期：FAIL — IMAGE_GROUP 编辑器不存在
+
+- [ ] **Step 3: 写最小实现**
+
+新增 `ImageGroupFields` 内部组件：
+- `Form.List` 模板列表，每项含 label / templatePath + 选择图片按钮 / threshold
+- "+ 添加模板"按钮，最后一项不可删除
+- `logic` Radio.Group（ALL/ANY），默认 ANY
+- 共享 delayMs / retryCount / retryIntervalMs / scaleRange 字段
+- 转场卡片与 IMAGE_MATCH 一致
+
+更新 `buildConfig` IMAGE_GROUP 分支返回表单数据。
+
+- [ ] **Step 4: 运行测试确认通过**
+
+运行：`npx vitest run src/renderer/components/Assistant/__tests__/StepEditor-updates.test.tsx`
+预期：PASS
+
+- [ ] **Step 5: 重构**
+
+检查保存前校验逻辑：至少一个模板、label/path 非空、threshold 在 [0,1]。确认 `buildConfig` 返回值与 `ImageGroupMatchConfig` 类型一致。
+
+- [ ] **Step 6: 提交**
+
+```bash
+git add src/renderer/components/Assistant/StepEditor.tsx src/renderer/components/Assistant/__tests__/StepEditor-updates.test.tsx
+git commit -m "feat: add IMAGE_GROUP editor with multi-template list and ALL/ANY logic"
+```
+
+---
+
+## Task 9: StepEditor — 图片选择与保存时归一化
+
+**文件：**
+- 修改：`src/renderer/components/Assistant/StepEditor.tsx`
+
+- [ ] **Step 1: 写失败测试**
+
+在 `src/renderer/components/Assistant/__tests__/StepEditor-updates.test.tsx` 中添加：
+
+```typescript
+it('shows image picker button next to templatePath input', () => {
+  render(<StepEditor taskId="t1" onSave={vi.fn()} onCancel={vi.fn()} />);
+  expect(screen.getByText('选择图片')).toBeTruthy();
+});
+
+it('invokes image:pick and image:normalize on picker click', async () => {
+  const mockInvoke = vi.fn()
+    .mockResolvedValueOnce({ sourcePath: '/ext/img.png' })
+    .mockResolvedValueOnce({ savedPath: '/templates/abc.png' });
+  (window as any).electronAPI = { invoke: mockInvoke, on: vi.fn(), removeAllListeners: vi.fn() };
+  render(<StepEditor taskId="t1" onSave={vi.fn()} onCancel={vi.fn()} />);
+  fireEvent.click(screen.getByText('选择图片'));
+  await waitFor(() => {
+    expect(mockInvoke).toHaveBeenCalledWith('image:pick');
+    expect(mockInvoke).toHaveBeenCalledWith('image:normalize', { sourcePath: '/ext/img.png' });
+  });
+});
+```
+
+- [ ] **Step 2: 运行测试确认失败**
+
+运行：`npx vitest run src/renderer/components/Assistant/__tests__/StepEditor-updates.test.tsx`
+预期：FAIL — 选择图片按钮不存在
+
+- [ ] **Step 3: 写最小实现**
+
+在 `ImageMatchFields` 和 `ImageGroupFields` 中，每个 `templatePath` 输入框旁添加"选择图片"按钮。
+
+修改 `handleSubmit` 为 async 函数，在调用 `onSave` 之前对所有 `templatePath` 调用 `image:normalize`，失败则中止保存。
+
+- [ ] **Step 4: 运行测试确认通过**
+
+运行：`npx vitest run src/renderer/components/Assistant/__tests__/StepEditor-updates.test.tsx`
+预期：PASS
+
+- [ ] **Step 5: 重构**
+
+检查 `handleSubmit` 的错误处理：归一化失败时在对应字段设置表单错误。确认 IMAGE_GROUP 的多个模板路径都正确归一化。
+
+- [ ] **Step 6: 提交**
+
+```bash
+git add src/renderer/components/Assistant/StepEditor.tsx src/renderer/components/Assistant/__tests__/StepEditor-updates.test.tsx
+git commit -m "feat: add image picker and normalize-on-save to StepEditor"
+```
+
+---
+
+## Task 10: TaskEditor — 步骤组管理
 
 **文件：**
 - 创建：`src/renderer/components/Assistant/StepGroupCard.tsx`
 - 修改：`src/renderer/components/Assistant/TaskEditor.tsx`
 
-- [ ] **Step 1: 实现 StepGroupCard 组件**
+- [ ] **Step 1: 写失败测试**
 
-新建 `src/renderer/components/Assistant/StepGroupCard.tsx`：
+在 `src/renderer/components/Assistant/__tests__/TaskEditor-groups.test.tsx` 中添加：
 
 ```typescript
-import React from 'react';
-import { Card, Tag, Button, Space, Popconfirm, List } from 'antd';
-import { EditOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
-import type { StepGroup, Step } from '@shared/types/task';
+it('shows add step group button', () => {
+  render(<TaskEditor taskId="t1" onClose={vi.fn()} />);
+  expect(screen.getByText('+ 添加步骤组')).toBeTruthy();
+});
 
-interface StepGroupCardProps {
-  group: StepGroup;
-  steps: Step[];
-  onEditGroup: (group: StepGroup) => void;
-  onDeleteGroup: (groupId: string) => void;
-  onAddStep: (groupId: string) => void;
-  onEditStep: (step: Step) => void;
-  onDeleteStep: (stepId: string) => void;
-  children?: React.ReactNode;
-}
+it('shows step groups loaded from IPC', async () => {
+  const mockInvoke = vi.fn().mockImplementation((channel: string) => {
+    if (channel === 'task:get') return Promise.resolve({ task: { id: 't1', name: 'Test' } });
+    if (channel === 'task:get-steps') return Promise.resolve({ steps: [] });
+    if (channel === 'step-group:list') return Promise.resolve({ groups: [{ id: 'g1', taskId: 't1', name: 'Loop', loopCount: 3 }] });
+    return Promise.resolve({});
+  });
+  (window as any).electronAPI = { invoke: mockInvoke, on: vi.fn(), removeAllListeners: vi.fn() };
+  render(<TaskEditor taskId="t1" onClose={vi.fn()} />);
+  await waitFor(() => {
+    expect(screen.getByText('Loop')).toBeTruthy();
+    expect(screen.getByText('循环 ×3')).toBeTruthy();
+  });
+});
 
-export const StepGroupCard: React.FC<StepGroupCardProps> = ({
-  group, steps, onEditGroup, onDeleteGroup, onAddStep, onEditStep, onDeleteStep, children,
-}) => {
-  const loopLabel = group.loopCount === 0 ? '循环 ∞' : `循环 ×${group.loopCount}`;
-
-  return (
-    <Card
-      size="small"
-      title={
-        <Space>
-          {group.name}
-          <Tag color="blue">{loopLabel}</Tag>
-        </Space>
-      }
-      extra={
-        <Space>
-          <Button icon={<EditOutlined />} size="small" onClick={() => onEditGroup(group)} />
-          <Popconfirm title="确定删除该步骤组？组内步骤将变为未分组。" onConfirm={() => onDeleteGroup(group.id)}>
-            <Button icon={<DeleteOutlined />} size="small" danger />
-          </Popconfirm>
-        </Space>
-      }
-      style={{ marginBottom: 8 }}
-    >
-      {steps.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: 16, color: '#999' }}>
-          暂无步骤
-        </div>
-      ) : (
-        steps.map(step => (
-          <div key={step.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}>
-            <span>{step.type} — {step.order}</span>
-            <Space>
-              <Button size="small" onClick={() => onEditStep(step)}>编辑</Button>
-              <Popconfirm title="确定删除？" onConfirm={() => onDeleteStep(step.id)}>
-                <Button size="small" danger>删除</Button>
-              </Popconfirm>
-            </Space>
-          </div>
-        ))
-      )}
-      {children}
-      <Button icon={<PlusOutlined />} size="small" type="dashed" block style={{ marginTop: 8 }} onClick={() => onAddStep(group.id)}>
-        在该组添加步骤
-      </Button>
-    </Card>
-  );
-};
+it('shows ungrouped steps section', async () => {
+  const mockInvoke = vi.fn().mockImplementation((channel: string) => {
+    if (channel === 'task:get') return Promise.resolve({ task: { id: 't1', name: 'Test' } });
+    if (channel === 'task:get-steps') return Promise.resolve({ steps: [{ id: 's1', taskId: 't1', type: 'IMAGE_MATCH', order: 1, config: {}, screenshotBeforeMatch: false, realtimeMatch: false, cacheCoordinates: false }] });
+    if (channel === 'step-group:list') return Promise.resolve({ groups: [] });
+    return Promise.resolve({});
+  });
+  (window as any).electronAPI = { invoke: mockInvoke, on: vi.fn(), removeAllListeners: vi.fn() };
+  render(<TaskEditor taskId="t1" onClose={vi.fn()} />);
+  await waitFor(() => {
+    expect(screen.getByText('（未分组）')).toBeTruthy();
+  });
+});
 ```
 
-- [ ] **Step 2: 更新 TaskEditor 加载步骤组**
+- [ ] **Step 2: 运行测试确认失败**
 
-在 TaskEditor 中新增状态 `stepGroups: StepGroup[]`，在加载步骤的同时调用 `step-group:list` 加载步骤组。
+运行：`npx vitest run src/renderer/components/Assistant/__tests__/TaskEditor-groups.test.tsx`
+预期：FAIL — 步骤组管理 UI 不存在
 
-- [ ] **Step 3: 实现步骤组 CRUD UI**
+- [ ] **Step 3: 写最小实现**
 
-添加"+ 添加步骤组"按钮和创建/编辑 Modal（name + loopCount 字段）。编辑复用同一个 Modal，预填当前值。
+1. 创建 `StepGroupCard` 组件
+2. TaskEditor 加载步骤组列表
+3. "+ 添加步骤组"按钮 + 创建/编辑 Modal（name + loopCount）
+4. 步骤按 groupId 分组展示，未分组步骤单独分区
+5. 组按成员步骤最小 order 排序，空组排在末尾
+6. 删除组确认后解组步骤
+7. 增删改后重新加载
 
-- [ ] **Step 4: 按组分区展示步骤**
+- [ ] **Step 4: 运行测试确认通过**
 
-将步骤列表改为：
-1. 按 `groupId` 分组
-2. 有 groupId 的步骤用 `StepGroupCard` 渲染
-3. 无 groupId 的步骤集中显示在"（未分组）"区域
-4. 组按成员步骤的最小 order 排序
-5. 空组渲染在末尾
+运行：`npx vitest run src/renderer/components/Assistant/__tests__/TaskEditor-groups.test.tsx`
+预期：PASS
 
-- [ ] **Step 5: 传入 groupId 到 StepEditor**
+- [ ] **Step 5: 重构**
 
-"+ 添加步骤"按钮（工具栏）创建步骤时 `groupId` 为 undefined。"+ 在该组添加步骤"按钮传入对应组的 id。
+检查 `StepGroupCard` 的 props 接口是否与 TaskEditor 的调用一致。确认步骤组卡片的循环次数标签显示正确（0 = ∞）。确认"+ 在该组添加步骤"按钮正确传入 groupId。
 
-- [ ] **Step 6: 每次增删改后重新加载**
-
-在 create/update/delete group 和 create/update/delete step 的回调中，重新加载步骤组列表和步骤列表。
-
-- [ ] **Step 7: 提交**
+- [ ] **Step 6: 提交**
 
 ```bash
-git add src/renderer/components/Assistant/StepGroupCard.tsx src/renderer/components/Assistant/TaskEditor.tsx
+git add src/renderer/components/Assistant/StepGroupCard.tsx src/renderer/components/Assistant/TaskEditor.tsx src/renderer/components/Assistant/__tests__/TaskEditor-groups.test.tsx
 git commit -m "feat: add step group management UI to TaskEditor"
 ```
 
 ---
 
-## Task 9: App.tsx + 列表组件 — 移除全屏编辑器视图
+## Task 11: App.tsx + 列表组件 — 移除全屏编辑器视图
 
 **文件：**
 - 修改：`src/renderer/App.tsx`
 - 修改：`src/renderer/components/Assistant/TaskList.tsx`
 - 修改：`src/renderer/components/Assistant/TaskGroupList.tsx`
 
-- [ ] **Step 1: App.tsx 移除 task-editor/group-editor 视图**
+- [ ] **Step 1: 写失败测试**
 
-从 `AssistantView` 类型中删除 `'task-editor'` 和 `'group-editor'`。移除 `renderAssistantContent()` 中对应的 case 分支。移除 `editingTaskId` 和 `editingGroupId` 状态。
+在 `src/renderer/__tests__/App.test.tsx` 中添加：
 
-顶部栏仅保留 `'tasks'` 和 `'groups'` 两个按钮。
+```typescript
+it('does not render task-editor view', () => {
+  render(<App />);
+  expect(screen.queryByText('编辑任务')).toBeNull();
+});
 
-- [ ] **Step 2: TaskList 移除 onEdit prop**
+it('only shows tasks and groups toggle buttons', () => {
+  render(<App />);
+  expect(screen.getByText('任务')).toBeTruthy();
+  expect(screen.getByText('任务组')).toBeTruthy();
+});
+```
 
-从 `TaskListProps` 中移除 `onEdit`。编辑按钮的 onClick 直接调用 `setDrawerTaskId(taskId)`（已有的逻辑）。双击同理。移除对 `onEdit` 的调用。
+- [ ] **Step 2: 运行测试确认失败**
 
-- [ ] **Step 3: TaskGroupList 移除 onEdit prop**
+运行：`npx vitest run src/renderer/__tests__/App.test.tsx`
+预期：FAIL — task-editor 视图分支仍存在
 
-与 TaskList 同理，从 `TaskGroupListProps` 中移除 `onEdit`。编辑按钮和双击统一调用 `setDrawerGroupId(groupId)`。
+- [ ] **Step 3: 写最小实现**
 
-- [ ] **Step 4: 运行 build 验证**
+1. `App.tsx`：从 `AssistantView` 类型中删除 `'task-editor'` 和 `'group-editor'`。移除 `renderAssistantContent()` 中对应的 case 分支。移除 `editingTaskId` 和 `editingGroupId` 状态。顶部栏仅保留 `'tasks'` 和 `'groups'` 两个按钮。
+
+2. `TaskList.tsx`：从 `TaskListProps` 中移除 `onEdit`。编辑按钮的 onClick 直接调用 `setDrawerTaskId(taskId)`。移除对 `onEdit` 的调用。
+
+3. `TaskGroupList.tsx`：从 `TaskGroupListProps` 中移除 `onEdit`。编辑按钮和双击统一调用 `setDrawerGroupId(groupId)`。
+
+- [ ] **Step 4: 运行测试确认通过**
+
+运行：`npx vitest run src/renderer/__tests__/App.test.tsx`
+预期：PASS
+
+- [ ] **Step 5: 重构**
+
+运行构建验证无 TypeScript 错误。检查 `TaskList` 和 `TaskGroupList` 的 `onEdit` prop 移除后，父组件（App.tsx）中传递该 prop 的地方也已清理。
 
 运行：`npm run build`
 预期：BUILD SUCCESS
 
-- [ ] **Step 5: 提交**
+- [ ] **Step 6: 提交**
 
 ```bash
-git add src/renderer/App.tsx src/renderer/components/Assistant/TaskList.tsx src/renderer/components/Assistant/TaskGroupList.tsx
+git add src/renderer/App.tsx src/renderer/components/Assistant/TaskList.tsx src/renderer/components/Assistant/TaskGroupList.tsx src/renderer/__tests__/App.test.tsx
 git commit -m "feat: remove full-panel editor views, unify edit entry via Drawer"
 ```
 
 ---
 
-## Task 10: 最终集成验证
+## Task 12: 最终集成验证
 
 - [ ] **Step 1: 运行全部测试**
 
