@@ -108,6 +108,33 @@ app.whenReady().then(() => {
     return { success: true };
   });
 
+  // Browser screenshot handler — capture webview content and save to caches
+  registry.handle(IPC_CHANNELS.BROWSER_CAPTURE_SCREENSHOT, async () => {
+    const cachesDir = path.join(app.getPath('userData'), 'caches');
+    fs.mkdirSync(cachesDir, { recursive: true });
+
+    // Find webview webContents
+    const allWebContents = (await import('electron')).webContents.getAllWebContents();
+    const webview = allWebContents.find(wc => wc.getType() === 'webview');
+    if (!webview) {
+      throw new Error('No webview found');
+    }
+
+    // Capture page
+    const image = await webview.capturePage();
+    const buffer = image.toPNG();
+
+    // Save to caches directory with timestamp
+    const now = new Date();
+    const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const filename = `screenshot-${timestamp}.png`;
+    const filePath = path.join(cachesDir, filename);
+    fs.writeFileSync(filePath, buffer);
+
+    // Return base64 data URL
+    return `data:image/png;base64,${buffer.toString('base64')}`;
+  });
+
   // Browser size query — returns the main window's content size
   registry.handle(IPC_CHANNELS.BROWSER_GET_SIZE, () => {
     const bounds = win.getContentBounds();
