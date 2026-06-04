@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Card, Upload, Button, Space, Typography, Image, message } from 'antd';
-import { UploadOutlined } from '@ant-design/icons';
+import { UploadOutlined, CameraOutlined } from '@ant-design/icons';
+import { IPC_CHANNELS } from '@shared/constants';
 
 const { Text } = Typography;
 
@@ -26,6 +27,7 @@ export const ImageCompare: React.FC = () => {
   const [template, setTemplate] = useState<string | null>(null);
   const [result, setResult] = useState<MatchResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [screenshotLoading, setScreenshotLoading] = useState(false);
 
   const handleMatch = async () => {
     if (!screenshot || !template) {
@@ -48,6 +50,20 @@ export const ImageCompare: React.FC = () => {
     }
   };
 
+  const handleScreenshot = async () => {
+    setScreenshotLoading(true);
+    try {
+      const api = (window as any).electronAPI;
+      const base64 = await api.invoke(IPC_CHANNELS.BROWSER_CAPTURE_SCREENSHOT);
+      setScreenshot(base64);
+      message.success('截图已保存并设置为当前截图');
+    } catch (err: any) {
+      message.error(err?.message || '截图失败');
+    } finally {
+      setScreenshotLoading(false);
+    }
+  };
+
   return (
     <Space direction="vertical" style={{ width: '100%' }}>
       <Space>
@@ -62,6 +78,13 @@ export const ImageCompare: React.FC = () => {
         >
           <Button icon={<UploadOutlined />}>上传截图</Button>
         </Upload>
+        <Button
+          icon={<CameraOutlined />}
+          loading={screenshotLoading}
+          onClick={handleScreenshot}
+        >
+          截图
+        </Button>
         <Upload
           accept="image/*"
           showUploadList={false}
