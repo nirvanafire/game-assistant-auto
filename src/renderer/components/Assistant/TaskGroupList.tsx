@@ -1,15 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { List, Button, Tag, Popconfirm, Modal, Form, Input, Select, message, Drawer } from 'antd';
+import { Button, Tag, Popconfirm, Modal, Form, Input, Select, message, Drawer, Space } from 'antd';
 import { PlusOutlined, PlayCircleOutlined, StopOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons';
 import { IPC_CHANNELS } from '@shared/constants';
 import { TaskGroupEditor } from './TaskGroupEditor';
 import type { TaskGroup } from '@shared/types/task-group';
 
-interface TaskGroupListProps {
-  onEdit: (groupId: string) => void;
-}
-
-export const TaskGroupList: React.FC<TaskGroupListProps> = ({ onEdit }) => {
+export const TaskGroupList: React.FC = () => {
   const [groups, setGroups] = useState<TaskGroup[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [drawerGroupId, setDrawerGroupId] = useState<string | null>(null);
@@ -30,12 +26,20 @@ export const TaskGroupList: React.FC<TaskGroupListProps> = ({ onEdit }) => {
 
   const handleCreate = async (values: any) => {
     const api = (window as any).electronAPI;
+    if (!api) {
+      console.error('electronAPI is not available');
+      message.error('系统接口不可用。');
+      return;
+    }
     try {
-      await api.invoke(IPC_CHANNELS.TASK_GROUP_CREATE, values);
+      console.log('Creating task group with values:', values);
+      const result = await api.invoke(IPC_CHANNELS.TASK_GROUP_CREATE, values);
+      console.log('Task group create result:', result);
       setShowCreate(false);
       form.resetFields();
       loadGroups();
     } catch (err) {
+      console.error('Failed to create task group:', err);
       message.error('创建任务组失败。');
     }
   };
@@ -74,31 +78,38 @@ export const TaskGroupList: React.FC<TaskGroupListProps> = ({ onEdit }) => {
 
   const handleEditClick = (groupId: string) => {
     setDrawerGroupId(groupId);
-    onEdit(groupId);
   };
 
   return (
     <>
       <Button icon={<PlusOutlined />} onClick={() => setShowCreate(true)} style={{ marginBottom: 8 }}>新建任务组</Button>
-      <List
-        dataSource={groups}
-        renderItem={(group) => (
-          <List.Item
+      <Space direction="vertical" style={{ width: '100%' }}>
+        {groups.map((group) => (
+          <div
             key={group.id}
             onDoubleClick={() => handleDoubleClick(group.id)}
-            actions={[
-              <Button icon={<PlayCircleOutlined />} type="primary" size="small" onClick={() => handleStart(group.id)} />,
-              <Button icon={<StopOutlined />} size="small" onClick={() => handleStop(group.id)} />,
-              <Button icon={<EditOutlined />} size="small" onClick={() => handleEditClick(group.id)} />,
-              <Popconfirm title="确定删除？" onConfirm={() => handleDelete(group.id)}>
-                <Button icon={<DeleteOutlined />} size="small" danger />
-              </Popconfirm>,
-            ]}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '8px 12px',
+              border: '1px solid #f0f0f0',
+              borderRadius: 4,
+              background: '#fafafa',
+            }}
           >
-            <List.Item.Meta title={group.name} description={<>{group.loopEnabled && <Tag color="blue">循环</Tag>}<Tag>{group.failurePolicy}</Tag></>} />
-          </List.Item>
-        )}
-      />
+            <span style={{ flex: 1, fontWeight: 500 }}>{group.name}</span>
+            {group.loopEnabled && <Tag color="blue">循环</Tag>}
+            <Tag>{group.failurePolicy}</Tag>
+            <Button icon={<PlayCircleOutlined />} type="primary" size="small" onClick={() => handleStart(group.id)} />
+            <Button icon={<StopOutlined />} size="small" onClick={() => handleStop(group.id)} />
+            <Button icon={<EditOutlined />} size="small" onClick={() => handleEditClick(group.id)} />
+            <Popconfirm title="确定删除？" onConfirm={() => handleDelete(group.id)}>
+              <Button icon={<DeleteOutlined />} size="small" danger />
+            </Popconfirm>
+          </div>
+        ))}
+      </Space>
       <Modal title="新建任务组" open={showCreate} onCancel={() => setShowCreate(false)} onOk={() => form.submit()}>
         <Form form={form} layout="vertical" onFinish={handleCreate}>
           <Form.Item name="name" label="名称" rules={[{ required: true }]}><Input /></Form.Item>
@@ -111,7 +122,7 @@ export const TaskGroupList: React.FC<TaskGroupListProps> = ({ onEdit }) => {
         title="编辑任务组"
         open={drawerGroupId !== null}
         onClose={() => setDrawerGroupId(null)}
-        width={700}
+        size="large"
         destroyOnClose
       >
         {drawerGroupId && (

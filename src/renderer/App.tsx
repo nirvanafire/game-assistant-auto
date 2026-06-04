@@ -6,40 +6,23 @@ import { ImageCompare } from './components/Tools/ImageCompare';
 import { ClickTest } from './components/Tools/ClickTest';
 import { NetworkLog } from './components/Network/NetworkLog';
 import { TaskList } from './components/Assistant/TaskList';
-import { TaskEditor } from './components/Assistant/TaskEditor';
 import { TaskGroupList } from './components/Assistant/TaskGroupList';
-import { TaskGroupEditor } from './components/Assistant/TaskGroupEditor';
 import { ExecutionStatus } from './components/Assistant/ExecutionStatus';
 import { BrowserPanel } from './components/Browser/BrowserPanel';
+import { SizeIndicator } from './components/SizeIndicator';
 
-type AssistantView = 'tasks' | 'task-editor' | 'groups' | 'group-editor';
+type AssistantView = 'tasks' | 'groups';
 
 export const App: React.FC = () => {
   const [view, setView] = useState<AssistantView>('tasks');
-  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
-  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
-
-  const handleEditTask = (taskId: string) => {
-    setEditingTaskId(taskId);
-    setView('task-editor');
-  };
-
-  const handleEditGroup = (groupId: string) => {
-    setEditingGroupId(groupId);
-    setView('group-editor');
-  };
 
   const renderAssistantContent = () => {
     switch (view) {
-      case 'task-editor':
-        return editingTaskId ? <TaskEditor taskId={editingTaskId} onClose={() => setView('tasks')} /> : null;
-      case 'group-editor':
-        return editingGroupId ? <TaskGroupEditor groupId={editingGroupId} onClose={() => setView('groups')} /> : null;
       case 'groups':
-        return <TaskGroupList onEdit={handleEditGroup} />;
+        return <TaskGroupList />;
       case 'tasks':
       default:
-        return <TaskList onEdit={handleEditTask} />;
+        return <TaskList />;
     }
   };
 
@@ -49,6 +32,7 @@ export const App: React.FC = () => {
         <BrowserPanel />
       </Splitter.Panel>
       <Splitter.Panel>
+        <SizeIndicator />
         <Tabs defaultActiveKey="assistant" items={[
           {
             key: 'assistant',
@@ -58,7 +42,7 @@ export const App: React.FC = () => {
                 <Space style={{ marginBottom: 8 }}>
                   <Button
                     icon={<UnorderedListOutlined />}
-                    type={view === 'tasks' || view === 'task-editor' ? 'primary' : 'default'}
+                    type={view === 'tasks' ? 'primary' : 'default'}
                     onClick={() => setView('tasks')}
                     size="small"
                   >
@@ -66,7 +50,7 @@ export const App: React.FC = () => {
                   </Button>
                   <Button
                     icon={<GroupOutlined />}
-                    type={view === 'groups' || view === 'group-editor' ? 'primary' : 'default'}
+                    type={view === 'groups' ? 'primary' : 'default'}
                     onClick={() => setView('groups')}
                     size="small"
                   >
