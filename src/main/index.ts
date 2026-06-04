@@ -3,18 +3,22 @@ import { createMainWindow, getMainWindow } from './window';
 import { createSchema } from './db/schema';
 import { runMigrations } from './db/migrations';
 import { StorageService } from './services/storage';
+import { TemplateStorage } from './services/template-storage';
 import { Logger } from './services/logger';
 import { IpcRegistry } from './ipc/registry';
 import { createLogIpcHandlers } from './ipc/log';
 import { createTaskIpcHandlers } from './ipc/task';
 import { createTaskGroupIpcHandlers } from './ipc/task-group';
 import { createImportExportHandlers } from './ipc/import-export';
+import { createImageIpcHandlers } from './ipc/image';
+import { createStepGroupIpcHandlers } from './ipc/step-group';
 import { TaskEngine } from './services/task-engine';
 import { TaskGroupEngine } from './services/task-group-engine';
 import { CaptureService } from './services/capture';
 import { ClickerService } from './services/clicker';
 import { MatcherClient } from './services/matcher-client';
 import { ConfigService } from './services/config';
+import { IPC_CHANNELS } from '@shared/constants';
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
@@ -58,6 +62,8 @@ app.whenReady().then(() => {
 
   const config = new ConfigService(configPath);
   storage = new StorageService(db);
+  const templateStorage = new TemplateStorage(userDataPath);
+  templateStorage.init();
   logger = new Logger(logDir, config.get('debugMode'));
   logger.cleanup(config.get('autoPruneDays'));
 
@@ -73,9 +79,11 @@ app.whenReady().then(() => {
 
   // IPC handlers
   createLogIpcHandlers(registry, logger, win.webContents);
-  createTaskIpcHandlers(registry, storage, taskEngine, win.webContents);
-  createTaskGroupIpcHandlers(registry, storage, taskGroupEngine, win.webContents);
+  createTaskIpcHandlers(registry, storage, taskEngine, win.webContents, logger);
+  createTaskGroupIpcHandlers(registry, storage, taskGroupEngine, win.webContents, logger);
   createImportExportHandlers(registry, storage);
+  createImageIpcHandlers(registry, templateStorage);
+  createStepGroupIpcHandlers(registry, storage);
 
   // Click test handler
   registry.handle('capture:click', async (_event: any, data: { x: number; y: number; button?: string; count?: number }) => {
@@ -98,6 +106,18 @@ app.whenReady().then(() => {
   registry.handle('browser:resized', () => {
     taskEngine.clearCoordinateCache();
     return { success: true };
+  });
+
+  // Browser size query — returns the main window's content size
+  registry.handle(IPC_CHANNELS.BROWSER_GET_SIZE, () => {
+    const bounds = win.getContentBounds();
+    return { width: bounds.width, height: bounds.height };
+  });
+
+  // Forward window resize events to renderer for live size display
+  win.on('resize', () => {
+    const bounds = win.getContentBounds();
+    win.webContents.send(IPC_CHANNELS.BROWSER_WINDOW_RESIZED, { width: bounds.width, height: bounds.height });
   });
 
 });
