@@ -279,7 +279,12 @@ export class TaskEngine {
               this.statuses.set(taskId, 'completed');
               return;
             }
-            gsi++;
+            if (transition?.action === 'NEXT_STEP') {
+              gsi++;
+              continue;
+            }
+            this.statuses.set(taskId, 'completed');
+            return;
           }
 
           if (broken) break;
@@ -320,9 +325,16 @@ export class TaskEngine {
             this.statuses.set(taskId, 'completed');
             return;
           }
-        } else {
-          stepIndex++;
+          continue;
         }
+
+        if (transition?.action === 'NEXT_STEP') {
+          stepIndex++;
+          continue;
+        }
+
+        this.statuses.set(taskId, 'completed');
+        return;
       }
     }
 

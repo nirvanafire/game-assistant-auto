@@ -67,7 +67,7 @@ describe('TaskEngine coordinate cache', () => {
 
   it('uses cached coordinates on second match (skips matcher call)', async () => {
     mockStorage.listSteps.mockReturnValue([
-      { id: 's1', taskId: 't1', type: 'IMAGE_MATCH', order: 1, groupId: 'sg1', config: { templatePath: '/img.png', threshold: 0.8, delayMs: 0, retryCount: 0, retryIntervalMs: 0, scaleRange: [0.5, 2] }, onMatch: {}, onMiss: {}, screenshotBeforeMatch: true, realtimeMatch: true, cacheCoordinates: true },
+      { id: 's1', taskId: 't1', type: 'IMAGE_MATCH', order: 1, groupId: 'sg1', config: { templatePath: '/img.png', threshold: 0.8, delayMs: 0, retryCount: 0, retryIntervalMs: 0, scaleRange: [0.5, 2] }, onMatch: { action: 'NEXT_STEP' }, onMiss: { action: 'NEXT_STEP' }, screenshotBeforeMatch: true, realtimeMatch: true, cacheCoordinates: true },
       { id: 's2', taskId: 't1', type: 'IMAGE_MATCH', order: 2, groupId: 'sg1', config: { templatePath: '/img.png', threshold: 0.8, delayMs: 0, retryCount: 0, retryIntervalMs: 0, scaleRange: [0.5, 2] }, onMatch: { action: 'END_TASK' }, onMiss: { action: 'END_TASK' }, screenshotBeforeMatch: true, realtimeMatch: true, cacheCoordinates: true },
     ]);
     mockStorage.listStepGroups.mockReturnValue([
