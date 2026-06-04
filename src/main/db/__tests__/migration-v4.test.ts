@@ -1,6 +1,8 @@
-import type Database from 'better-sqlite3';
+import { describe, it, expect, beforeEach } from 'vitest';
+import Database from 'better-sqlite3';
+import { runMigrations, getCurrentVersion } from '../migrations';
 
-export function createSchema(db: Database.Database): void {
+function createV3Schema(db: Database.Database): void {
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
 
@@ -103,6 +105,60 @@ export function createSchema(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_task_group_runs_group ON task_group_runs(task_group_id);
     CREATE INDEX IF NOT EXISTS idx_network_logs_ts ON network_logs(timestamp);
 
-    INSERT OR IGNORE INTO schema_version (version) VALUES (4);
+    INSERT OR IGNORE INTO schema_version (version) VALUES (3);
   `);
 }
+
+describe('Migration v4', () => {
+  let db: Database.Database;
+
+  beforeEach(() => {
+    db = new Database(':memory:');
+    createV3Schema(db);
+  });
+
+  it('backfills empty on_match for IMAGE_MATCH to NEXT_STEP', () => {
+    db.prepare("INSERT INTO tasks (id, name, status, settings, interrupt_handlers) VALUES (?, ?, ?, ?, ?)").run('t1', 'Test', 'idle', '{}', '[]');
+    db.prepare('INSERT INTO steps (id, task_id, type, "order", config, on_match, on_miss, screenshot_before_match, realtime_match, cache_coordinates) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run('s1', 't1', 'IMAGE_MATCH', 1, '{}', '{}', '{}', 0, 0, 0);
+    runMigrations(db);
+    const row = db.prepare('SELECT on_match FROM steps WHERE id = ?').get('s1') as any;
+    expect(JSON.parse(row.on_match)).toEqual({ action: 'NEXT_STEP' });
+  });
+
+  it('backfills empty on_miss for IMAGE_GROUP to NEXT_STEP', () => {
+    db.prepare("INSERT INTO tasks (id, name, status, settings, interrupt_handlers) VALUES (?, ?, ?, ?, ?)").run('t1', 'Test', 'idle', '{}', '[]');
+    db.prepare('INSERT INTO steps (id, task_id, type, "order", config, on_match, on_miss, screenshot_before_match, realtime_match, cache_coordinates) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run('s1', 't1', 'IMAGE_GROUP', 1, '{}', '{}', '{}', 0, 0, 0);
+    runMigrations(db);
+    const row = db.prepare('SELECT on_miss FROM steps WHERE id = ?').get('s1') as any;
+    expect(JSON.parse(row.on_miss)).toEqual({ action: 'NEXT_STEP' });
+  });
+
+  it('does not modify CLICK rows', () => {
+    db.prepare("INSERT INTO tasks (id, name, status, settings, interrupt_handlers) VALUES (?, ?, ?, ?, ?)").run('t1', 'Test', 'idle', '{}', '[]');
+    db.prepare('INSERT INTO steps (id, task_id, type, "order", config, on_match, on_miss, screenshot_before_match, realtime_match, cache_coordinates) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run('s1', 't1', 'CLICK', 1, '{}', '{}', '{}', 0, 0, 0);
+    runMigrations(db);
+    const row = db.prepare('SELECT on_match FROM steps WHERE id = ?').get('s1') as any;
+    expect(row.on_match).toBe('{}');
+  });
+
+  it('does not modify rows with existing action', () => {
+    db.prepare("INSERT INTO tasks (id, name, status, settings, interrupt_handlers) VALUES (?, ?, ?, ?, ?)").run('t1', 'Test', 'idle', '{}', '[]');
+    db.prepare('INSERT INTO steps (id, task_id, type, "order", config, on_match, on_miss, screenshot_before_match, realtime_match, cache_coordinates) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run('s1', 't1', 'IMAGE_MATCH', 1, '{}', '{"action":"END_TASK"}', '{}', 0, 0, 0);
+    runMigrations(db);
+    const row = db.prepare('SELECT on_match FROM steps WHERE id = ?').get('s1') as any;
+    expect(JSON.parse(row.on_match)).toEqual({ action: 'END_TASK' });
+  });
+
+  it('does not modify rows with nextStepId', () => {
+    db.prepare("INSERT INTO tasks (id, name, status, settings, interrupt_handlers) VALUES (?, ?, ?, ?, ?)").run('t1', 'Test', 'idle', '{}', '[]');
+    db.prepare('INSERT INTO steps (id, task_id, type, "order", config, on_match, on_miss, screenshot_before_match, realtime_match, cache_coordinates) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run('s1', 't1', 'IMAGE_MATCH', 1, '{}', '{"nextStepId":"s3"}', '{}', 0, 0, 0);
+    runMigrations(db);
+    const row = db.prepare('SELECT on_match FROM steps WHERE id = ?').get('s1') as any;
+    expect(JSON.parse(row.on_match)).toEqual({ nextStepId: 's3' });
+  });
+
+  it('updates schema version to 4', () => {
+    runMigrations(db);
+    expect(getCurrentVersion(db)).toBe(4);
+  });
+});

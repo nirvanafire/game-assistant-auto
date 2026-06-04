@@ -35,6 +35,23 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    version: 4,
+    up: (db: Database.Database) => {
+      db.exec(`
+        UPDATE steps SET on_match = '{"action":"NEXT_STEP"}'
+        WHERE type IN ('IMAGE_MATCH', 'IMAGE_GROUP')
+          AND (on_match IS NULL OR on_match = '' OR on_match = '{}'
+            OR (json_extract(on_match, '$.action') IS NULL AND json_extract(on_match, '$.nextStepId') IS NULL));
+      `);
+      db.exec(`
+        UPDATE steps SET on_miss = '{"action":"NEXT_STEP"}'
+        WHERE type IN ('IMAGE_MATCH', 'IMAGE_GROUP')
+          AND (on_miss IS NULL OR on_miss = '' OR on_miss = '{}'
+            OR (json_extract(on_miss, '$.action') IS NULL AND json_extract(on_miss, '$.nextStepId') IS NULL));
+      `);
+    },
+  },
 ];
 
 export function getCurrentVersion(db: Database.Database): number {
