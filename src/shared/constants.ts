@@ -53,7 +53,15 @@ export const IPC_CHANNELS = {
   TASK_GROUP_UPDATE_ITEM_TARGET: 'task-group:update-item-target',
   TASK_GROUP_REORDER_ITEMS: 'task-group:reorder-items',
   BROWSER_RESIZED: 'browser:resized',
+  BROWSER_GET_SIZE: 'browser:get-size',
+  BROWSER_WINDOW_RESIZED: 'browser:window-resized',
   TASK_CLEAR_COORDINATE_CACHE: 'task:clear-coordinate-cache',
+  IMAGE_PICK: 'image:pick',
+  IMAGE_NORMALIZE: 'image:normalize',
+  STEP_GROUP_LIST: 'step-group:list',
+  STEP_GROUP_CREATE: 'step-group:create',
+  STEP_GROUP_UPDATE: 'step-group:update',
+  STEP_GROUP_DELETE: 'step-group:delete',
 } as const;
 
 export type IPCChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];

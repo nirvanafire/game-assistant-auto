@@ -105,6 +105,39 @@ export class StorageService {
     }));
   }
 
+  listStepGroupsByTask(taskId: string): StepGroup[] {
+    const rows = this.db.prepare('SELECT * FROM step_groups WHERE task_id = ? ORDER BY id').all(taskId) as any[];
+    return rows.map(row => ({
+      id: row.id,
+      taskId: row.task_id,
+      name: row.name,
+      loopCount: row.loop_count,
+    }));
+  }
+
+  createStepGroup(data: { taskId: string; name: string; loopCount: number }): StepGroup {
+    const id = uuidv4();
+    this.db.prepare(
+      'INSERT INTO step_groups (id, task_id, name, loop_count) VALUES (?, ?, ?, ?)'
+    ).run(id, data.taskId, data.name, data.loopCount);
+    return { id, taskId: data.taskId, name: data.name, loopCount: data.loopCount };
+  }
+
+  updateStepGroup(id: string, patch: Partial<Pick<StepGroup, 'name' | 'loopCount'>>): void {
+    const row = this.db.prepare('SELECT * FROM step_groups WHERE id = ?').get(id) as any;
+    if (!row) return;
+    const name = patch.name ?? row.name;
+    const loopCount = patch.loopCount ?? row.loop_count;
+    this.db.prepare(
+      'UPDATE step_groups SET name = ?, loop_count = ? WHERE id = ?'
+    ).run(name, loopCount, id);
+  }
+
+  deleteStepGroup(id: string): void {
+    this.db.prepare('UPDATE steps SET group_id = NULL WHERE group_id = ?').run(id);
+    this.db.prepare('DELETE FROM step_groups WHERE id = ?').run(id);
+  }
+
   updateStep(id: string, data: Partial<Omit<Step, 'id'>>): void {
     const row = this.db.prepare('SELECT * FROM steps WHERE id = ?').get(id) as any;
     if (!row) return;
