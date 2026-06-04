@@ -1,132 +1,132 @@
-## Context
+## 背景
 
-This change builds on top of the in-flight `refactor-assistant-module` work. That change introduced drawer editing, per-step realtime match, coordinate caching, and CLICK simplification. The current round addresses the editor UX gaps that surfaced once those features landed: divergent edit entry points, hand-typed image paths with no asset management, vertically stacked toggles, an empty IMAGE_GROUP editor, missing transition defaults, and no surface for step group management. The changes are concentrated in StepEditor, TaskEditor, the two list components, a new template-storage service, and a small engine semantic adjustment.
+本轮改动建立在正在进行的 `refactor-assistant-module` 基础之上。该变更已引入 Drawer 编辑、逐步骤实时比对、坐标缓存和 CLICK 简化。本轮聚焦于上述功能落地后暴露的编辑器 UX 缺口：编辑入口不统一、手动输入路径无资产管理、开关垂直堆叠、IMAGE_GROUP 编辑器为空、转场动作无默认值、步骤组无管理界面。改动集中在 StepEditor、TaskEditor、两个列表组件、新的 template-storage 服务以及一处引擎语义调整。
 
-## Goals / Non-Goals
+## 目标 / 非目标
 
-**Goals:**
-- Consolidate editor entry points: edit button and double-click open the same Drawer.
-- Manage template images as first-class assets under `userData/templates/`.
-- Make the three step toggles compact (horizontal) and adopt a sensible default for `cacheCoordinates`.
-- Provide a complete editor for the IMAGE_GROUP step type, including ALL/ANY logic.
-- Give transition actions meaningful defaults; clarify that "无" means "stop", not "advance".
-- Expose step group creation, edit, delete in TaskEditor; render steps grouped by `groupId`.
+**目标：**
+- 统一编辑入口：编辑按钮和双击都打开同一个 Drawer。
+- 将模板图片作为 `userData/templates/` 下的一等公民资产进行管理。
+- 让三个步骤开关更紧凑（横排），并为 `cacheCoordinates` 采用合理的默认值。
+- 为 IMAGE_GROUP 步骤类型提供完整编辑器，包括 ALL/ANY 逻辑。
+- 给转场动作设置有意义的默认值；明确"无"表示"停止"，而非"继续推进"。
+- 在 TaskEditor 中暴露步骤组的创建、编辑、删除；按 `groupId` 分组展示步骤。
 
-**Non-Goals:**
-- No drag-and-drop for steps between groups.
-- No orphan image cleanup.
-- No changes to the matcher service.
-- No new transition action types beyond `NEXT_STEP`.
-- No reuse-image deduplication (same source picked twice produces two copies).
+**非目标：**
+- 不支持步骤在组间拖拽。
+- 不做孤儿图片清理。
+- 不改动匹配服务。
+- 不新增 `NEXT_STEP` 以外的转场动作类型。
+- 不做图片去重（同一来源选两次会产生两份拷贝）。
 
-## Decisions
+## 决策
 
-### 1. Edit button and double-click converge on the same Drawer
+### 1. 编辑按钮和双击收敛到同一个 Drawer
 
-The list components own a `drawerXxxId` state. Both the edit button's `onClick` and the row's `onDoubleClick` simply call `setDrawerXxxId(id)`. The `onEdit` prop is removed (or kept as a no-op callback for parent listeners). `App.tsx` retires its `'task-editor'` and `'group-editor'` view branches and only retains the `'tasks'` / `'groups'` switch in the top bar.
+列表组件拥有 `drawerXxxId` 状态。编辑按钮的 `onClick` 和行的 `onDoubleClick` 都调用 `setDrawerXxxId(id)`。`onEdit` 属性移除（或保留为父组件的空操作回调）。`App.tsx` 废弃 `'task-editor'` 和 `'group-editor'` 视图分支，顶部栏仅保留 `'tasks'` / `'groups'` 切换。
 
-**Alternatives considered:**
-- Modal instead of Drawer: rejected — TaskEditor and TaskGroupEditor are tall vertical forms; Drawer's side-panel format matches their height better and is already in use.
-- Keep both edit modes (button = full view, double-click = drawer): rejected — the user explicitly asked for parity and the divergence is the bug being fixed.
+**考虑过的备选方案：**
+- 用 Modal 代替 Drawer：被否决——TaskEditor 和 TaskGroupEditor 是纵向表单；Drawer 的侧边面板格式更匹配其高度，且已在使用中。
+- 保留两种编辑模式（按钮=全屏视图，双击=Drawer）：被否决——用户明确要求统一，不一致正是本轮要修复的问题。
 
-### 2. Template images are normalized on save, not on input
+### 2. 模板图片在保存时归一化，而非输入时
 
-Whether the user pastes a path or picks a file, the renderer collects `templatePath` as a string. At step save time, before sending `step:create` / `step:update`, the renderer calls `image:normalize` for every template path. The main process checks whether the path is already under `templates/`; if yes, it returns the same path, otherwise copies the file to `templates/<uuid><ext>` and returns the new path.
+无论用户粘贴路径还是选择文件，渲染层都将 `templatePath` 收集为字符串。在步骤保存时（发送 `step:create` / `step:update` 之前），渲染层对每个模板路径调用 `image:normalize`。主进程检查路径是否已在 `templates/` 下；若在则原样返回，否则复制到 `templates/<uuid><ext>` 并返回新路径。
 
-The picker button reuses the same flow: it triggers `image:pick` to get a source path, then `image:normalize` to copy it in, then writes the result into the form field.
+选择按钮复用同一流程：调用 `image:pick` 获取源路径，再调用 `image:normalize` 复制进来，然后写入表单字段。
 
-**Rationale**: Normalizing on save (rather than on blur) avoids partial state where the form shows one path while the disk has another. It also keeps the picker code path identical to the manual entry path.
+**理由**：在保存时（而非失焦时）归一化，避免表单显示一个路径而磁盘上是另一个的不一致状态。也使选择按钮的代码路径与手动输入完全一致。
 
-**Alternatives considered:**
-- Copy on input blur: rejected — surprises the user with implicit copying mid-edit; complicates undo.
-- Only copy via picker, leave manual paths as external references: rejected — the user explicitly required manual paths to also be copied.
+**考虑过的备选方案：**
+- 输入失焦时复制：被否决——在编辑中途隐式复制会让用户意外；增加撤销的复杂度。
+- 仅通过选择器复制，手动输入保留为外部引用：被否决——用户明确要求手动输入也要复制。
 
-### 3. Horizontal toggle row uses Space + equal-width Form.Items
+### 3. 横排开关行使用 Space + 等宽 Form.Item
 
-The three toggles sit inside an antd `Space` (horizontal, `wrap`) container. Each `Form.Item` has its label on top and the `Switch` below, sharing equal width via flex. The `shouldUpdate` form-item already conditionally renders by step type — extending it to wrap all three toggles in one shared conditional block keeps the logic centralized.
+三个开关放在 antd `Space`（horizontal, `wrap`）容器内。每个 `Form.Item` 标签在上、`Switch` 在下，通过 flex 等宽分配。`shouldUpdate` 表单项已按步骤类型有条件渲染——将其扩展为包裹所有三个开关的共享条件块，保持逻辑集中。
 
-**`cacheCoordinates` default change**: New steps' initialValues set `cacheCoordinates: true`. Existing rows are not retroactively flipped — they keep whatever value they had — because changing existing behavior silently is risky and the user only asked for the new-step default.
+**`cacheCoordinates` 默认值变更**：新建步骤的 initialValues 设为 `cacheCoordinates: true`。现有行不回溯翻转——它们保留原有值——因为静默改变现有行为有风险，且用户只要求新步骤的默认值。
 
-### 4. IMAGE_GROUP_MATCH uses the existing config shape
+### 4. IMAGE_GROUP_MATCH 使用现有配置结构
 
-`ImageGroupMatchConfig` already supports `templates: Array<{label, templatePath, threshold}>` and `logic: 'ALL' | 'ANY'`. The editor exposes:
-- A `Form.List` over `templates`, each item with label / path (+ pick button) / threshold.
-- A `Radio.Group` for `logic` with labels "同时满足（全部匹配）" / "满足其一（任一匹配）". Default `ANY`.
-- Shared timing/scaling fields (`delayMs`, `retryCount`, `retryIntervalMs`, `scaleRange`) below the template list.
-- Transition cards (onMatch/onMiss) identical to IMAGE_MATCH.
+`ImageGroupMatchConfig` 已支持 `templates: Array<{label, templatePath, threshold}>` 和 `logic: 'ALL' | 'ANY'`。编辑器暴露：
+- `templates` 的 `Form.List`，每项含标签 / 路径（+ 选择按钮） / 阈值。
+- `logic` 的 `Radio.Group`，标签为"同时满足（全部匹配）" / "满足其一（任一匹配）"。默认 `ANY`。
+- 模板列表下方的共享时间/缩放字段（`delayMs`、`retryCount`、`retryIntervalMs`、`scaleRange`）。
+- 与 IMAGE_MATCH 相同的转场卡片（onMatch/onMiss）。
 
-The UI label "图像组匹配" replaces "图像组" in the type Select and the step list. The underlying `StepType` value stays `'IMAGE_GROUP'` to avoid a data migration. Validation: at least one template; each template requires label, templatePath, and a valid threshold.
+UI 标签"图像组匹配"替换类型 Select 和步骤列表中的"图像组"。底层 `StepType` 值保持 `'IMAGE_GROUP'` 以避免数据迁移。校验规则：至少一个模板；每个模板要求有 label、templatePath 和有效阈值。
 
-### 5. Transition semantics: explicit NEXT_STEP, undefined means stop
+### 5. 转场语义：显式 NEXT_STEP，undefined 表示停止
 
-The current engine treats undefined transition as "advance to next ordered step". The new model:
+当前引擎将 undefined 转场视为"推进到下一个有序步骤"。新模型：
 
-| Transition state                                  | Engine behavior                                |
-|---------------------------------------------------|------------------------------------------------|
-| `transition === undefined` or `action === undefined` | Task completes (no further steps run)        |
-| `action === 'NEXT_STEP'`                          | Advance to next ordered step (within group if grouped) |
-| `action === 'END_TASK'`                           | Task completes                                 |
-| `action === 'END_STEP_GROUP'`                     | Exit current group loop, continue after group  |
-| `nextStepId` set                                  | Jump to that step (action ignored if both set) |
+| 转场状态                                      | 引擎行为                                |
+|-----------------------------------------------|-----------------------------------------|
+| `transition === undefined` 或 `action === undefined` | 任务完成（不再运行后续步骤）        |
+| `action === 'NEXT_STEP'`                      | 推进到下一个有序步骤（组内时推进到组内下一步） |
+| `action === 'END_TASK'`                       | 任务完成                                 |
+| `action === 'END_STEP_GROUP'`                 | 跳出当前组循环，继续组之后的步骤       |
+| `nextStepId` 已设置                            | 跳转到指定步骤（两者都设置时 nextStepId 优先） |
 
-**Rationale**: The user explicitly said "无 = 不执行后续步骤". Having undefined map to "advance" was a silent default that hid intent. Making both "advance" and "stop" explicit forces step authors to declare what should happen.
+**理由**：用户明确说"无 = 不执行后续步骤"。undefined 映射为"推进"是一个隐式默认值，隐藏了意图。让"推进"和"停止"都显式化，迫使步骤编辑者声明应该发生什么。
 
-**New-step defaults**: `onMatch.action = 'NEXT_STEP'` (the common case), `onMiss.action = undefined` (so unconfigured miss halts).
+**新步骤默认值**：`onMatch.action = 'NEXT_STEP'`（常见场景），`onMiss.action = undefined`（未配置的未匹配时停止）。
 
-### 6. Migration v4 preserves current behavior for existing steps
+### 6. Migration v4 保留现有步骤行为
 
-Without migration, existing IMAGE_MATCH/IMAGE_GROUP steps whose `on_match`/`on_miss` are `'{}'` (the current "undefined" representation) would suddenly halt instead of advancing — breaking every existing task.
+不做迁移的话，现有 `on_match`/`on_miss` 为 `'{}'`（当前的"undefined"表示）的 IMAGE_MATCH/IMAGE_GROUP 步骤会突然停止而非继续推进——破坏所有现有任务。
 
-Migration v4 walks the `steps` table:
-- For each row where `type IN ('IMAGE_MATCH', 'IMAGE_GROUP')`:
-  - If `on_match` is `NULL`, `''`, `'{}'`, or `json_extract(on_match, '$.action')` is null AND `json_extract(on_match, '$.nextStepId')` is null → set `on_match = '{"action":"NEXT_STEP"}'`.
-  - Same for `on_miss`.
-- CLICK rows are skipped (their transitions are ignored by the engine anyway).
+Migration v4 遍历 `steps` 表：
+- 对每个 `type IN ('IMAGE_MATCH', 'IMAGE_GROUP')` 的行：
+  - 若 `on_match` 为 `NULL`、`''`、`'{}'`，或 `json_extract(on_match, '$.action')` 为 null 且 `json_extract(on_match, '$.nextStepId')` 为 null → 设置 `on_match = '{"action":"NEXT_STEP"}'`。
+  - `on_miss` 同理。
+- CLICK 行跳过（其转场本来就被引擎忽略）。
 
-Existing tasks therefore behave identically post-migration. Only new steps see the new defaults.
+因此现有任务在迁移后行为完全一致。只有新步骤才会使用新默认值。
 
-### 7. Step groups: create-first, then assign
+### 7. 步骤组：先建组，再分配
 
-The TaskEditor's steps area splits into:
-- A toolbar: `+ 添加步骤组` and `+ 添加步骤` buttons.
-- A list of step group cards, each with header (name + loop tag + edit/delete icons) and the group's steps inside, plus a `+ 在该组添加步骤` button at the bottom.
-- An "（未分组）" section with the same shape, minus group icons.
+TaskEditor 的步骤区域分为：
+- 工具栏：`+ 添加步骤组` 和 `+ 添加步骤` 按钮。
+- 步骤组卡片列表，每张卡片有头部（组名 + 循环标签 + 编辑/删除图标）、组内步骤，以及底部的 `+ 在该组添加步骤` 按钮。
+- "（未分组）"区域，结构相同，但没有组管理图标。
 
-Group create/edit uses a small Modal (name + loopCount). Group delete confirms, then sets `group_id = NULL` for all steps in that group and removes the row from `step_groups`. Steps are not deleted.
+步骤组的创建/编辑使用小 Modal（name + loopCount）。删除时确认提示，然后将该组所有步骤的 `group_id` 设为 NULL，再从 `step_groups` 表删除该行。步骤本身不被删除。
 
-Each "添加步骤" button passes the target `groupId` (or undefined) into the StepEditor so the new step is created in the right group. StepEditor itself does not expose a `groupId` selector — the entry button decides.
+每个"添加步骤"按钮将目标 `groupId`（或 undefined）传入 StepEditor，以便新步骤在正确的组中创建。StepEditor 本身不暴露 `groupId` 选择器——由入口按钮决定。
 
-**Display ordering**: Groups are sorted by the minimum `order` of their member steps (so a group's position in the list reflects where its first step sits). This avoids a new "group order" column on `step_groups`. Ungrouped steps interleave naturally by `order`.
+**展示排序**：步骤组按其成员步骤的最小 `order` 排序（即组在列表中的位置反映其第一个步骤的位置）。这避免了在 `step_groups` 表上新增"组排序"列。未分组步骤按 `order` 自然穿插。
 
-**New IPC channels**:
+**新增 IPC 通道**：
 - `step-group:list` — `{ taskId } → { groups: StepGroup[] }`
 - `step-group:create` — `{ taskId, name, loopCount } → { group: StepGroup }`
 - `step-group:update` — `{ stepGroupId, patch: Partial<StepGroup> } → void`
 - `step-group:delete` — `{ stepGroupId } → void`
 
-`step-group:delete` is the only one with non-trivial logic (must null out referenced steps' `group_id` before deleting the group row). The renderer reloads the group list after every CUD.
+`step-group:delete` 是唯一有非平凡逻辑的（必须先将引用该组的步骤的 `group_id` 置空，再删除组行）。渲染层在每次增删改后重新加载组列表。
 
-## Risks / Trade-offs
+## 风险 / 权衡
 
-- **[Behavior shift on undefined transitions]** → If migration v4 misses any row (e.g., NULL handling differs across SQLite versions), affected steps will halt unexpectedly. **Mitigation**: migration test covers NULL, empty string, `'{}'`, partially populated JSON, and rows with valid actions. Manual smoke test against a dev DB before shipping.
+- **[undefined 转场行为变更]** → 如果 migration v4 漏掉了某行（例如 NULL 处理在不同 SQLite 版本间有差异），受影响的步骤会意外停止。**缓解措施**：迁移测试覆盖 NULL、空字符串、`'{}'`、部分填充的 JSON 和已有 action 的行。发布前在开发库上做手动冒烟测试。
 
-- **[Template directory grows unboundedly]** → Every save copies a new file; orphans accumulate. **Mitigation**: out of scope this round; tracked as a future cleanup tool.
+- **[模板目录无限增长]** → 每次保存都复制新文件；孤儿文件会累积。**缓解措施**：本轮不做；作为未来的清理工具跟踪。
 
-- **[Step group ordering by min(step.order) is implicit]** → Renaming or restructuring may surprise the user if step orders shift. **Mitigation**: documented in the design; if it proves confusing, a follow-up can add an explicit `group_order` column.
+- **[步骤组按 min(step.order) 排序是隐式的]** → 重命名或重组时如果步骤顺序变化，用户可能感到意外。**缓解措施**：已在设计中记录；如有后续需求可新增显式 `group_order` 列。
 
-- **[Cross-group ordering ambiguity]** → If two groups have interleaved orders (e.g., group A steps at orders 1,3 and group B at order 2), rendering by min(order) places A before B but B's step would visually live "between" A's steps. **Mitigation**: this round renders group cards contiguous (all of A's steps together, then all of B's), accepting the slight inconsistency with the global order field. The engine still walks by `order`, so execution is unaffected.
+- **[跨组顺序歧义]** → 如果两个组的顺序交错（如组 A 的步骤在 order 1,3，组 B 在 order 2），按 min(order) 渲染会让 A 排在 B 前面，但 B 的步骤会视觉上"穿插"在 A 的步骤之间。**缓解措施**：本轮将组卡片连续渲染（A 的所有步骤在一起，然后 B 的），接受与全局 order 字段的轻微不一致。引擎仍按 `order` 遍历，执行不受影响。
 
-- **[Manual path typed for non-existent file]** → Normalization fails on save; user gets an error. **Mitigation**: clear inline error message; form does not submit until the path resolves.
+- **[输入不存在的文件路径]** → 保存时归一化失败；用户收到错误提示。**缓解措施**：清晰的内联错误消息；表单不提交直到路径解析成功。
 
-## Migration Plan
+## 迁移计划
 
-1. **Schema**: no new columns; `template-storage` directory is created at app startup if absent.
-2. **Migration v4**: backfill `on_match`/`on_miss` for IMAGE_MATCH and IMAGE_GROUP rows where action and nextStepId are both missing → `'{"action":"NEXT_STEP"}'`. Update schema version to 4.
-3. **No template image migration**: existing `templatePath` values remain valid as-is. They are only normalized when the step is re-saved (lazy migration).
-4. **Rollback**: revert migration v4 (delete the backfilled action keys); revert renderer/main-process code; the `templates/` directory remains harmless on disk.
+1. **Schema**：不新增列；`template-storage` 目录在应用启动时自动创建。
+2. **Migration v4**：回填 IMAGE_MATCH 和 IMAGE_GROUP 行中 action 和 nextStepId 都缺失的 `on_match`/`on_miss` 为 `'{"action":"NEXT_STEP"}'`。Schema 版本更新到 4。
+3. **模板图片无需迁移**：现有 `templatePath` 值原样保留。仅在步骤重新保存时才归一化（惰性迁移）。
+4. **回滚**：回退 migration v4（删除回填的 action 键）；回退渲染器/主进程代码；`templates/` 目录留在磁盘上无害。
 
-## Open Questions
+## 待定问题
 
-- Should the StepEditor warn when a templatePath is normalized at save time (i.e., the file was copied), to make the asset management visible to the user?
-- Should `step-group:delete` offer a destructive variant that also deletes the contained steps?
-- For migration v4, should CLICK rows also be normalized to a sentinel value to make their unused transitions obvious in the DB, or left untouched?
+- StepEditor 是否应在保存时提示模板路径已被归一化（即文件被复制了），让资产管理对用户可见？
+- `step-group:delete` 是否应提供一个破坏性变体，同时删除包含的步骤？
+- Migration v4 中，CLICK 行是否也应归一化为哨兵值，让其未使用的转场在数据库中更明显，还是保持原样？

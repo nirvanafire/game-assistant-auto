@@ -1,42 +1,42 @@
 ## ADDED Requirements
 
-### Requirement: Horizontal toggle row
-For IMAGE_MATCH and IMAGE_GROUP step types, StepEditor SHALL render the three execution toggles (fresh screenshot, realtime match, cache coordinates) in a single horizontal row with equal-width labels.
+### Requirement: 开关横排布局
+对于 IMAGE_MATCH 和 IMAGE_GROUP 步骤类型，StepEditor SHALL将三个执行开关（全新截图、实时比对、缓存坐标）渲染在一行水平排列，等宽标签。
 
-#### Scenario: IMAGE_MATCH layout
-- **WHEN** the user opens StepEditor for an IMAGE_MATCH step
-- **THEN** the three toggles appear in one horizontal row; each label sits above its Switch
+#### Scenario: IMAGE_MATCH 布局
+- **当** 用户为 IMAGE_MATCH 步骤打开 StepEditor 时
+- **则** 三个开关出现在同一水平行；每个标签位于其 Switch 上方
 
-#### Scenario: IMAGE_GROUP layout
-- **WHEN** the user opens StepEditor for an IMAGE_GROUP step
-- **THEN** the same three-toggle row appears with identical structure
+#### Scenario: IMAGE_GROUP 布局
+- **当** 用户为 IMAGE_GROUP 步骤打开 StepEditor 时
+- **则** 同样的三开关行以相同结构出现
 
-#### Scenario: Narrow screen wraps gracefully
-- **WHEN** the editor panel is narrower than the row's natural width
-- **THEN** the toggles wrap to the next line without overlapping or truncating labels
+#### Scenario: 窄屏优雅换行
+- **当** 编辑器面板比该行自然宽度窄时
+- **则** 开关换行显示，不重叠或截断标签
 
-### Requirement: CLICK type hides execution toggles
-For CLICK step type, StepEditor SHALL NOT render any of the three toggles.
+### Requirement: CLICK 类型隐藏执行开关
+对于 CLICK 步骤类型，StepEditor SHALL NOT渲染三个开关中的任何一个。
 
-#### Scenario: CLICK step has no toggle row
-- **WHEN** the user switches the step type Select to "点击"
-- **THEN** the fresh-screenshot, realtime-match, and cache-coordinates toggles all disappear from the form
+#### Scenario: CLICK 步骤没有开关行
+- **当** 用户将步骤类型 Select 切换为"点击"时
+- **则** 全新截图、实时比对、缓存坐标三个开关全部从表单中消失
 
-#### Scenario: Switching back to IMAGE_MATCH restores toggles
-- **WHEN** the user changes type from CLICK back to IMAGE_MATCH
-- **THEN** the horizontal toggle row reappears with the previously held values (if any) or defaults (if new)
+#### Scenario: 切回 IMAGE_MATCH 后开关恢复
+- **当** 用户将类型从 CLICK 切回 IMAGE_MATCH 时
+- **则** 水平开关行恢复显示，保留之前的值（如有）或默认值（如为新建）
 
-### Requirement: cacheCoordinates defaults to true for new steps
-StepEditor's initialValues for a new step (no `step` prop) SHALL set `cacheCoordinates: true`. Existing steps SHALL retain their persisted value.
+### Requirement: 缓存坐标默认开启
+StepEditor 的新建步骤 initialValues SHALL设置 `cacheCoordinates: true`。现有步骤SHALL保留其持久化的值。
 
-#### Scenario: New step has caching enabled
-- **WHEN** the user opens StepEditor to create a new step
-- **THEN** the cache-coordinates Switch is in the ON position
+#### Scenario: 新建步骤缓存已启用
+- **当** 用户打开 StepEditor 创建新步骤时
+- **则** 缓存坐标 Switch 处于开启状态
 
-#### Scenario: Existing step preserves its value
-- **WHEN** the user opens StepEditor for an existing step with `cacheCoordinates=false`
-- **THEN** the Switch is OFF, matching the persisted value
+#### Scenario: 现有步骤保留原值
+- **当** 用户为 `cacheCoordinates=false` 的现有步骤打开 StepEditor 时
+- **则** Switch 处于关闭状态，与持久化值一致
 
-#### Scenario: New IMAGE_GROUP step also defaults caching on
-- **WHEN** the user creates an IMAGE_GROUP step
-- **THEN** the cache-coordinates Switch is ON by default
+#### Scenario: 新建 IMAGE_GROUP 步骤也默认开启缓存
+- **当** 用户创建 IMAGE_GROUP 步骤时
+- **则** 缓存坐标 Switch 默认开启

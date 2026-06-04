@@ -1,75 +1,75 @@
 ## ADDED Requirements
 
-### Requirement: UI label renamed to 图像组匹配
-The StepEditor type Select and any step-list rendering of the IMAGE_GROUP type SHALL display the label "图像组匹配". The underlying `StepType` enum value SHALL remain `'IMAGE_GROUP'`.
+### Requirement: UI 标签重命名为"图像组匹配"
+StepEditor 的类型 Select 以及步骤列表中 IMAGE_GROUP 类型的显示SHALL使用标签"图像组匹配"。底层 `StepType` 枚举值保持 `'IMAGE_GROUP'`。
 
-#### Scenario: Type Select shows new label
-- **WHEN** the user opens StepEditor and inspects the type Select options
-- **THEN** the option text for `IMAGE_GROUP` is "图像组匹配"
+#### Scenario: 类型 Select 显示新标签
+- **当** 用户打开 StepEditor 并查看类型 Select 选项时
+- **则** `IMAGE_GROUP` 的选项文本为"图像组匹配"
 
-#### Scenario: Step list row shows new label
-- **WHEN** a step list renders a step whose `type === 'IMAGE_GROUP'`
-- **THEN** the displayed type label is "图像组匹配"
+#### Scenario: 步骤列表行显示新标签
+- **当** 步骤列表渲染 `type === 'IMAGE_GROUP'` 的步骤时
+- **则** 显示的类型标签为"图像组匹配"
 
-#### Scenario: Persisted type identifier unchanged
-- **WHEN** the user creates an "图像组匹配" step and the renderer sends it to the main process
-- **THEN** the persisted `type` value is the string `'IMAGE_GROUP'`
+#### Scenario: 持久化的类型标识不变
+- **当** 用户创建"图像组匹配"步骤且渲染层发送到主进程时
+- **则** 持久化的 `type` 值为字符串 `'IMAGE_GROUP'`
 
-### Requirement: Multi-template editor
-StepEditor for IMAGE_GROUP SHALL render an editable list of templates, each item exposing `label`, `templatePath`, and `threshold`. The list SHALL support add and remove operations.
+### Requirement: 多模板编辑器
+IMAGE_GROUP 的 StepEditor SHALL渲染一个可编辑的模板列表，每项暴露 `label`、`templatePath` 和 `threshold`。列表SHALL支持添加和移除操作。
 
-#### Scenario: Default has one empty template
-- **WHEN** the user creates a new IMAGE_GROUP step
-- **THEN** the template list shows one empty row with `threshold` defaulting to 0.8 and an auto-generated label (e.g., "模板 1")
+#### Scenario: 默认有一个空模板
+- **当** 用户创建新的 IMAGE_GROUP 步骤时
+- **则** 模板列表显示一行空行，`threshold` 默认 0.8，标签自动生成（如"模板 1"）
 
-#### Scenario: Add template appends a row
-- **WHEN** the user clicks "+ 添加模板"
-- **THEN** a new empty row is appended with `threshold = 0.8` and an auto-generated label
+#### Scenario: 添加模板追加一行
+- **当** 用户点击"+ 添加模板"时
+- **则** 一行新的空行被追加，`threshold = 0.8`，标签自动生成
 
-#### Scenario: Remove template removes the row
-- **WHEN** the user clicks the remove icon on a row, and there are at least two rows
-- **THEN** the row is removed from the list
+#### Scenario: 移除模板删除该行
+- **当** 用户点击某行的移除图标，且列表至少有两行时
+- **则** 该行从列表中移除
 
-#### Scenario: Last template cannot be removed
-- **WHEN** the user clicks the remove icon on the only remaining row
-- **THEN** the row is not removed; an inline hint or disabled state communicates the constraint
+#### Scenario: 最后一个模板不可移除
+- **当** 用户点击唯一剩余行的移除图标时
+- **则** 该行不被移除；通过内联提示或禁用状态传达约束
 
-#### Scenario: Each template path supports the image picker
-- **WHEN** the user clicks "选择图片" on any template row
-- **THEN** the picker → normalize flow runs (see `template-image-storage` capability) and writes the result into that row's path field
+#### Scenario: 每个模板路径支持图片选择器
+- **当** 用户在任一模板行点击"选择图片"时
+- **则** 执行选择器→归一化流程（参见 `template-image-storage` 能力），将结果写入该行的路径字段
 
-### Requirement: ALL/ANY logic switch
-StepEditor for IMAGE_GROUP SHALL render a Radio.Group bound to `config.logic` with two options: ALL (labeled "同时满足（全部匹配）") and ANY (labeled "满足其一（任一匹配）"). The default SHALL be ANY for new steps.
+### Requirement: ALL/ANY 逻辑切换
+IMAGE_GROUP 的 StepEditor SHALL渲染绑定到 `config.logic` 的 Radio.Group，两个选项：ALL（标签"同时满足（全部匹配）"）和 ANY（标签"满足其一（任一匹配）"）。新建步骤默认 ANY。
 
-#### Scenario: New step defaults to ANY
-- **WHEN** the user creates a new IMAGE_GROUP step
-- **THEN** the logic radio is on "满足其一（任一匹配）"
+#### Scenario: 新建步骤默认 ANY
+- **当** 用户创建新的 IMAGE_GROUP 步骤时
+- **则** 逻辑单选选中"满足其一（任一匹配）"
 
-#### Scenario: Selecting ALL persists ALL
-- **WHEN** the user selects "同时满足（全部匹配）" and saves the step
-- **THEN** the persisted `config.logic` is `'ALL'`
+#### Scenario: 选择 ALL 后持久化为 ALL
+- **当** 用户选择"同时满足（全部匹配）"并保存步骤时
+- **则** 持久化的 `config.logic` 为 `'ALL'`
 
-### Requirement: Shared timing and scaling fields
-StepEditor for IMAGE_GROUP SHALL expose `delayMs`, `retryCount`, `retryIntervalMs`, and `scaleRange` editors with the same controls used for IMAGE_MATCH.
+### Requirement: 共享的时间和缩放字段
+IMAGE_GROUP 的 StepEditor SHALL暴露 `delayMs`、`retryCount`、`retryIntervalMs` 和 `scaleRange` 编辑器，控件与 IMAGE_MATCH 相同。
 
-#### Scenario: Editing applies to the group as a whole
-- **WHEN** the user edits any timing/scaling field
-- **THEN** the value is written to the top-level `config` object, not per template
+#### Scenario: 编辑作用于整个组
+- **当** 用户编辑任何时间/缩放字段时
+- **则** 值写入顶层 `config` 对象，而非每个模板
 
-### Requirement: Validation before save
-StepEditor SHALL block save when the IMAGE_GROUP step has zero templates, or any template is missing a `label` / `templatePath`, or any `threshold` is outside [0, 1].
+### Requirement: 保存前校验
+当 IMAGE_GROUP 步骤没有模板、或任何模板缺少 `label` / `templatePath`、或任何 `threshold` 超出 [0, 1] 范围时，StepEditor SHALL阻止保存。
 
-#### Scenario: Empty path blocks save
-- **WHEN** the user tries to save with one template row whose `templatePath` is empty
-- **THEN** the save is rejected and the offending row is highlighted
+#### Scenario: 空路径阻止保存
+- **当** 用户尝试保存只有一行 `templatePath` 为空的模板的步骤时
+- **则** 保存被拒绝，对应行高亮提示
 
-#### Scenario: Invalid threshold blocks save
-- **WHEN** any template has `threshold > 1` or `threshold < 0`
-- **THEN** the save is rejected with a field-level message
+#### Scenario: 无效阈值阻止保存
+- **当** 任何模板的 `threshold > 1` 或 `threshold < 0` 时
+- **则** 保存被拒绝，显示字段级错误消息
 
-### Requirement: Transition cards mirror IMAGE_MATCH
-StepEditor for IMAGE_GROUP SHALL render the onMatch and onMiss transition cards identical to IMAGE_MATCH, sharing the action options and defaults defined in the `transition-defaults` capability.
+### Requirement: 转场卡片与 IMAGE_MATCH 一致
+IMAGE_GROUP 的 StepEditor SHALL渲染与 IMAGE_MATCH 相同的 onMatch 和 onMiss 转场卡片，共享 `transition-defaults` 能力中定义的动作选项和默认值。
 
-#### Scenario: New IMAGE_GROUP step has same defaults as IMAGE_MATCH
-- **WHEN** the user creates a new IMAGE_GROUP step
-- **THEN** `onMatch.action` defaults to `'NEXT_STEP'` and `onMiss.action` defaults to undefined ("无")
+#### Scenario: 新建 IMAGE_GROUP 步骤与 IMAGE_MATCH 默认值相同
+- **当** 用户创建新的 IMAGE_GROUP 步骤时
+- **则** `onMatch.action` 默认为 `'NEXT_STEP'`，`onMiss.action` 默认为 undefined（"无"）
