@@ -27,11 +27,11 @@ export const App: React.FC = () => {
   };
 
   return (
-    <Splitter style={{ height: '100vh' }}>
-      <Splitter.Panel defaultSize="70%" min="30%">
+    <Splitter style={{ height: '100vh', overflow: 'hidden' }}>
+      <Splitter.Panel defaultSize="70%" min="30%" style={{ overflow: 'hidden' }}>
         <BrowserPanel />
       </Splitter.Panel>
-      <Splitter.Panel>
+      <Splitter.Panel style={{ overflow: 'hidden' }}>
         <SizeIndicator />
         <Tabs defaultActiveKey="assistant" items={[
           {

@@ -8,13 +8,20 @@ export function createMainWindow(): BrowserWindow {
     width: 1400,
     height: 900,
     webPreferences: {
-      preload: path.join(__dirname, '../preload/preload.mjs'),
+      preload: path.join(__dirname, '../preload/preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
       webviewTag: true,
     },
   });
   mainWindow.setMenu(null);
+
+  // F12 to toggle DevTools
+  mainWindow.webContents.on('before-input-event', (_event, input) => {
+    if (input.key === 'F12') {
+      mainWindow?.webContents.toggleDevTools();
+    }
+  });
 
   if (process.env.NODE_ENV_ELECTRON_VITE === 'development') {
     mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL || 'http://localhost:5173');

@@ -37,6 +37,10 @@ export const ImageCompare: React.FC = () => {
     setLoading(true);
     try {
       const api = (window as any).electronAPI;
+      if (!api) {
+        message.error('系统接口不可用。');
+        return;
+      }
       const res = await api.invoke('capture:match', {
         screenshot,
         template,
@@ -54,6 +58,9 @@ export const ImageCompare: React.FC = () => {
     setScreenshotLoading(true);
     try {
       const api = (window as any).electronAPI;
+      if (!api) {
+        throw new Error('electronAPI not available');
+      }
       const base64 = await api.invoke(IPC_CHANNELS.BROWSER_CAPTURE_SCREENSHOT);
       setScreenshot(base64);
       message.success('截图已保存并设置为当前截图');
@@ -78,13 +85,6 @@ export const ImageCompare: React.FC = () => {
         >
           <Button icon={<UploadOutlined />}>上传截图</Button>
         </Upload>
-        <Button
-          icon={<CameraOutlined />}
-          loading={screenshotLoading}
-          onClick={handleScreenshot}
-        >
-          截图
-        </Button>
         <Upload
           accept="image/*"
           showUploadList={false}
@@ -100,6 +100,13 @@ export const ImageCompare: React.FC = () => {
           对比
         </Button>
       </Space>
+      <Button
+        icon={<CameraOutlined />}
+        loading={screenshotLoading}
+        onClick={handleScreenshot}
+      >
+        截图
+      </Button>
 
       <Space>
         {screenshot && <Image src={screenshot} width={200} />}

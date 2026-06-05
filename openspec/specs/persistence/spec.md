@@ -37,6 +37,12 @@ SQLite SHALL use WAL mode for concurrent read/write performance.
 #### Template image storage
 Template images SHALL be stored as files in the templates directory. The database stores file paths only.
 
+### New step columns
+The system SHALL include a migration that adds `realtime_match` (boolean, default 0) and `cache_coordinates` (boolean, default 0) columns to the steps table. Existing steps get `realtime_match` from the task's `settings.screenshotBeforeMatch` value and `cache_coordinates` set to 0.
+
+### IPC channels
+The system SHALL register `browser:resized` and `task:clear-coordinate-cache` IPC channels for coordinate cache management.
+
 ### Storage Locations
 
 ```

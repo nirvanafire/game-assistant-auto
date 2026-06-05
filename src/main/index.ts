@@ -1,4 +1,4 @@
-import { app, session } from 'electron';
+import { app, session, webContents } from 'electron';
 import { createMainWindow, getMainWindow } from './window';
 import { createSchema } from './db/schema';
 import { runMigrations } from './db/migrations';
@@ -114,7 +114,7 @@ app.whenReady().then(() => {
     await fs.promises.mkdir(cachesDir, { recursive: true });
 
     // Find webview webContents
-    const allWebContents = (await import('electron')).webContents.getAllWebContents();
+    const allWebContents = webContents.getAllWebContents();
     const webview = allWebContents.find(wc => wc.getType() === 'webview');
     if (!webview) {
       throw new Error('No webview found');

@@ -1,10 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Input, Space, Button, Spin, message } from 'antd';
 import { ReloadOutlined, ArrowLeftOutlined, ArrowRightOutlined } from '@ant-design/icons';
+import { IPC_CHANNELS } from '@shared/constants';
+import { useSizeStore } from '../../stores/sizeStore';
 
 export const BrowserPanel: React.FC = () => {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
+  const setWindowSize = useSizeStore((s) => s.setWindowSize);
+  const setBrowserSize = useSizeStore((s) => s.setBrowserSize);
   const webviewRef = useRef<Electron.WebviewTag>(null);
 
   useEffect(() => {
@@ -25,12 +29,20 @@ export const BrowserPanel: React.FC = () => {
     wv.addEventListener('did-stop-loading', onStopLoading);
     wv.addEventListener('did-fail-load', onFailLoad);
 
+    // Track webview/browser content size
+    const measureBrowser = () => {
+      const rect = wv.getBoundingClientRect();
+      setBrowserSize({ width: Math.round(rect.width), height: Math.round(rect.height) });
+    };
+    measureBrowser();
+
     // Forward resize events to main process for coordinate cache invalidation
     let resizeTimer: ReturnType<typeof setTimeout>;
     const observer = new ResizeObserver(() => {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
-        (window as any).electronAPI?.invoke('browser:resized');
+        (window as any).electronAPI?.invoke(IPC_CHANNELS.BROWSER_RESIZED);
+        measureBrowser();
       }, 300);
     });
 
@@ -39,14 +51,27 @@ export const BrowserPanel: React.FC = () => {
       observer.observe(container);
     }
 
+    // Fetch initial main window size and listen for resize events
+    const api = (window as any).electronAPI;
+    if (api) {
+      api.invoke(IPC_CHANNELS.BROWSER_GET_SIZE).then((size: { width: number; height: number }) => {
+        setWindowSize(size);
+      }).catch(() => {});
+      const handleWindowResized = (size: { width: number; height: number }) => {
+        setWindowSize(size);
+      };
+      api.on(IPC_CHANNELS.BROWSER_WINDOW_RESIZED, handleWindowResized);
+    }
+
     return () => {
       wv.removeEventListener('did-start-loading', onStartLoading);
       wv.removeEventListener('did-stop-loading', onStopLoading);
       wv.removeEventListener('did-fail-load', onFailLoad);
       clearTimeout(resizeTimer);
       observer.disconnect();
+      (window as any).electronAPI?.removeAllListeners(IPC_CHANNELS.BROWSER_WINDOW_RESIZED);
     };
-  }, []);
+  }, [setWindowSize, setBrowserSize]);
 
   const handleNavigate = () => {
     const wv = webviewRef.current;
@@ -71,8 +96,8 @@ export const BrowserPanel: React.FC = () => {
   };
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Space style={{ padding: 8, background: '#fafafa', borderBottom: '1px solid #d9d9d9' }}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <Space style={{ padding: 8, background: '#fafafa', borderBottom: '1px solid #d9d9d9', flexShrink: 0 }}>
         <Button icon={<ArrowLeftOutlined />} size="small" onClick={handleBack} />
         <Button icon={<ArrowRightOutlined />} size="small" onClick={handleForward} />
         <Button icon={<ReloadOutlined />} size="small" onClick={handleRefresh} />

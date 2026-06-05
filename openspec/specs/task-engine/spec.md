@@ -10,12 +10,13 @@ Executes automated game workflows composed of steps. Supports branching logic, s
 
 1. Execute tasks composed of ordered steps
 2. Step types: IMAGE_MATCH, IMAGE_GROUP, CLICK
-3. Branching: each step has onMatch and onMiss transitions (next step or END_TASK)
+3. Branching: IMAGE_MATCH/IMAGE_GROUP steps have onMatch and onMiss transitions (next step, END_TASK, or END_STEP_GROUP); CLICK steps have no transitions — always proceed to next ordered step
 4. Step groups: ordered subset of steps with loop count (0 = infinite)
 5. Variable capture: IMAGE_MATCH results stored in task-scoped map; CLICK references "coords from step X"
 6. Interrupt handlers: task-level pre-scan before each step; detected interrupts trigger handler action then retry
 7. Loading screen detection: wait until loading screen template disappears
-8. Screenshot control: per-step toggle for screenshot before match (default false, reuse last screenshot)
+8. Screenshot control: per-step `realtimeMatch` toggle (default false, reuse last screenshot)
+9. Coordinate caching: per-step `cacheCoordinates` toggle; caches IMAGE_MATCH coordinates during task execution; invalidated on browser resize or manual clear
 9. Task lifecycle: idle → running → paused/completed/failed/stopped
 10. Step timeout and task global timeout
 11. Execution history: each run logged with timestamps, step results, and errors
@@ -40,10 +41,12 @@ The system SHALL support three step types: IMAGE_MATCH, IMAGE_GROUP, and CLICK.
 - **CLICK step**: simulate a mouse click at the specified coordinates
 
 #### Step branching
-Each step SHALL have onMatch and onMiss transitions that specify the next step or end the task.
+Each IMAGE_MATCH or IMAGE_GROUP step SHALL have onMatch and onMiss transitions that specify the next step, end the task, or end the step group. CLICK steps SHALL NOT have transitions — they always proceed to the next ordered step.
 
 - **Match leads to next step**: WHEN IMAGE_MATCH finds a match and onMatch.nextStepId is set, THEN execution continues to the specified next step
 - **Miss ends task**: WHEN IMAGE_MATCH finds no match and onMiss.action is "END_TASK", THEN the task completes
+- **Match ends step group**: WHEN IMAGE_MATCH finds a match and onMatch.action is "END_STEP_GROUP" and the step is inside a step group, THEN the group loop ends and execution continues after the group
+- **CLICK always next**: WHEN a CLICK step finishes, THEN execution continues to the next step in order regardless of any transition configuration
 
 #### Step groups
 The system SHALL support grouping steps with a loop count (0 = infinite).
@@ -78,7 +81,10 @@ Task groups SHALL support failure policies: STOP (terminate group), SKIP (skip f
 Task status SHALL remain independent of task group execution. Task group tracks its own execution progress.
 
 #### Screenshot control
-Each step SHALL have an optional screenshotBeforeMatch flag. When false (default), the step reuses the last screenshot.
+Each IMAGE_MATCH or IMAGE_GROUP step SHALL have a `realtimeMatch` boolean field. When true, the step captures a fresh screenshot before matching. When false (default), the step reuses the last captured screenshot.
+
+#### Coordinate caching
+TaskEngine SHALL maintain a coordinate cache (Map<string, {x, y}>) during task execution. IMAGE_MATCH steps with `cacheCoordinates=true` SHALL write to the cache on match and read from it before matching. Cache is invalidated on browser resize or manual clear via IPC.
 
 #### Step timeout and task timeout
 The system SHALL enforce per-step and per-task timeouts.
@@ -159,14 +165,16 @@ interface Step {
   order: number;
   groupId?: string;
   config: ImageMatchConfig | ImageGroupMatchConfig | ClickConfig;
-  onMatch: StepTransition;
-  onMiss: StepTransition;
+  onMatch?: StepTransition;   // only for IMAGE_MATCH/IMAGE_GROUP
+  onMiss?: StepTransition;    // only for IMAGE_MATCH/IMAGE_GROUP
   screenshotBeforeMatch: boolean;
+  realtimeMatch: boolean;
+  cacheCoordinates: boolean;
 }
 
 interface StepTransition {
   nextStepId?: string;
-  action?: 'END_TASK' | 'END_GROUP_LOOP';
+  action?: 'END_TASK' | 'END_STEP_GROUP' | 'NEXT_STEP';
 }
 ```
 
