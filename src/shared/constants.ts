@@ -34,6 +34,7 @@ export const IPC_CHANNELS = {
   CAPTURE_SCREENSHOT: 'capture:screenshot',
   BROWSER_CAPTURE_SCREENSHOT: 'browser:capture-screenshot',
   CAPTURE_CLICK: 'capture:click',
+  PYTHON_CLICK: 'python:click',
   CAPTURE_UPDATED: 'capture:updated',
   LOG_ENTRY: 'log:entry',
   LOG_DEBUG_STATE: 'log:debug-state',

@@ -16,6 +16,22 @@ interface MatchGroupRequest {
   scaleRange: [number, number];
 }
 
+interface ClickRequest {
+  x: number;
+  y: number;
+  button?: 'left' | 'right';
+  count?: number;
+  interval?: number;
+  duration?: number;
+}
+
+interface ClickResponse {
+  success: boolean;
+  x?: number;
+  y?: number;
+  error?: string;
+}
+
 interface HealthResponse {
   status: string;
   version: string;
@@ -54,6 +70,10 @@ export class MatcherClient {
       scale_range: req.scaleRange,
     };
     return this.post<GroupMatchResult>('/match-group', body);
+  }
+
+  async click(req: ClickRequest): Promise<ClickResponse> {
+    return this.post<ClickResponse>('/click', req);
   }
 
   async health(): Promise<HealthResponse> {

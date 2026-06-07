@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 from flask import Flask, request, jsonify
 from matcher import match_template, match_group
+from clicker import move_and_click
 from config import DEFAULT_THRESHOLD, DEFAULT_SCALE_RANGE
 
 app = Flask(__name__)
@@ -59,6 +60,18 @@ def match_group_route():
     ]
 
     result = match_group(screenshot, templates, logic, tuple(scale_range))
+    return jsonify(result)
+
+@app.route('/click', methods=['POST'])
+def click():
+    data = request.json
+    x = int(data['x'])
+    y = int(data['y'])
+    button = data.get('button', 'left')
+    count = int(data.get('count', 1))
+    interval = float(data.get('interval', 0.0))
+    duration = float(data.get('duration', 0.0))
+    result = move_and_click(x, y, button=button, count=count, interval=interval, duration=duration)
     return jsonify(result)
 
 def decode_image(base64_str: str) -> np.ndarray:

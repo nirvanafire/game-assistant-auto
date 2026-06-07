@@ -85,10 +85,22 @@ app.whenReady().then(() => {
   createImageIpcHandlers(registry, templateStorage);
   createStepGroupIpcHandlers(registry, storage);
 
-  // Click test handler
+  // Click test handler (Electron webview click)
   registry.handle('capture:click', async (_event: any, data: { x: number; y: number; button?: string; count?: number }) => {
     await clicker.click(data.x, data.y, { button: data.button as any, count: data.count });
     return { success: true };
+  });
+
+  // Python click handler (OS-level pyautogui click)
+  registry.handle(IPC_CHANNELS.PYTHON_CLICK, async (_event: any, data: { x: number; y: number; button?: string; count?: number; interval?: number }) => {
+    const result = await matcher.click({
+      x: data.x,
+      y: data.y,
+      button: data.button as 'left' | 'right' | undefined,
+      count: data.count,
+      interval: data.interval,
+    });
+    return result;
   });
 
   // Image match handler (for ImageCompare tool)

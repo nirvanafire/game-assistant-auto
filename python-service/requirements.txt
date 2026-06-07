@@ -1,4 +1,5 @@
 opencv-python-headless>=4.8.0
 flask>=3.0.0
 numpy>=1.24.0
+pyautogui>=0.9.54
 pyinstaller>=6.0.0

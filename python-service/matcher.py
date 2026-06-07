@@ -128,6 +128,11 @@ def _try_match(
             'y': center_y,
             'confidence': float(max_val),
             'scale': float(scale),
+            'boundingBox': {
+                'topLeft': {'x': max_loc[0], 'y': max_loc[1]},
+                'width': new_w,
+                'height': new_h,
+            },
         }
 
     return None
