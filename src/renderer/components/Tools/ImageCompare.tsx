@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Card, Upload, Button, Space, Typography, Image, message } from 'antd';
-import { UploadOutlined, CameraOutlined } from '@ant-design/icons';
+import { UploadOutlined, CameraOutlined, AimOutlined } from '@ant-design/icons';
 import { IPC_CHANNELS } from '@shared/constants';
 
 const { Text } = Typography;
@@ -9,6 +9,8 @@ interface MatchResult {
   matched: boolean;
   x?: number;
   y?: number;
+  screenX?: number;
+  screenY?: number;
   confidence?: number;
   scale?: number;
 }
@@ -28,6 +30,7 @@ export const ImageCompare: React.FC = () => {
   const [result, setResult] = useState<MatchResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [screenshotLoading, setScreenshotLoading] = useState(false);
+  const [moveLoading, setMoveLoading] = useState(false);
 
   const handleMatch = async () => {
     if (!screenshot || !template) {
@@ -71,6 +74,20 @@ export const ImageCompare: React.FC = () => {
     }
   };
 
+  const handleMove = async () => {
+    if (!result?.screenX || !result?.screenY) return;
+    setMoveLoading(true);
+    try {
+      const api = (window as any).electronAPI;
+      await api.invoke(IPC_CHANNELS.PYTHON_MOVE, { x: result.screenX, y: result.screenY });
+      message.success(`鼠标已移动到 (${result.screenX}, ${result.screenY})`);
+    } catch (err) {
+      message.error('移动失败');
+    } finally {
+      setMoveLoading(false);
+    }
+  };
+
   return (
     <Space direction="vertical" style={{ width: '100%' }}>
       <Space>
@@ -99,6 +116,9 @@ export const ImageCompare: React.FC = () => {
         <Button type="primary" onClick={handleMatch} loading={loading} disabled={!screenshot || !template}>
           对比
         </Button>
+        <Button icon={<AimOutlined />} onClick={handleMove} loading={moveLoading} disabled={!result?.screenX || !result?.screenY}>
+          移动鼠标
+        </Button>
       </Space>
       <Button
         icon={<CameraOutlined />}
@@ -118,7 +138,10 @@ export const ImageCompare: React.FC = () => {
           <Text>匹配结果: {result.matched ? '是' : '否'}</Text>
           {result.matched && (
             <Space direction="vertical">
-              <Text>X: {result.x}, Y: {result.y}</Text>
+              <Text>相对坐标: X: {result.x}, Y: {result.y}</Text>
+              {result.screenX != null && result.screenY != null && (
+                <Text>屏幕坐标: X: {result.screenX}, Y: {result.screenY}</Text>
+              )}
               <Text>置信度: {result.confidence?.toFixed(3)}</Text>
               <Text>缩放比: {result.scale?.toFixed(2)}</Text>
             </Space>

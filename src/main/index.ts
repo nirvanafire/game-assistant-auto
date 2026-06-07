@@ -103,6 +103,16 @@ app.whenReady().then(() => {
     return result;
   });
 
+  // Python click abort handler
+  registry.handle(IPC_CHANNELS.PYTHON_CLICK_ABORT, async () => {
+    return matcher.clickAbort();
+  });
+
+  // Python move handler (move mouse without clicking)
+  registry.handle(IPC_CHANNELS.PYTHON_MOVE, async (_event: any, data: { x: number; y: number; duration?: number }) => {
+    return matcher.move({ x: data.x, y: data.y, duration: data.duration });
+  });
+
   // Image match handler (for ImageCompare tool)
   registry.handle('capture:match', async (_event: any, data: { screenshot: string; template: string; threshold?: number }) => {
     const result = await matcher.match({
@@ -111,6 +121,22 @@ app.whenReady().then(() => {
       threshold: data.threshold ?? 0.8,
       scaleRange: [0.5, 2.0],
     });
+    if (result.matched && result.x != null && result.y != null) {
+      const contentBounds = win.getContentBounds();
+      const webviewRect = await win.webContents.executeJavaScript(`
+        (() => {
+          const wv = document.querySelector('webview');
+          if (!wv) return null;
+          const rect = wv.getBoundingClientRect();
+          return { x: Math.round(rect.left), y: Math.round(rect.top) };
+        })()
+      `);
+      if (webviewRect) {
+        const screenX = contentBounds.x + webviewRect.x + Math.round(result.x);
+        const screenY = contentBounds.y + webviewRect.y + Math.round(result.y);
+        return { ...result, screenX, screenY };
+      }
+    }
     return result;
   });
 
@@ -153,10 +179,55 @@ app.whenReady().then(() => {
     return { width: bounds.width, height: bounds.height };
   });
 
+  // Browser position query — returns the window's offset from screen top-left
+  registry.handle(IPC_CHANNELS.BROWSER_GET_POSITION, () => {
+    const bounds = win.getBounds();
+    return { x: bounds.x, y: bounds.y };
+  });
+
+  // Browser webview position query — returns the webview's offset from screen top-left
+  registry.handle(IPC_CHANNELS.BROWSER_GET_WEBVIEW_POSITION, async () => {
+    const contentBounds = win.getContentBounds();
+    const webviewRect = await win.webContents.executeJavaScript(`
+      (() => {
+        const wv = document.querySelector('webview');
+        if (!wv) return null;
+        const rect = wv.getBoundingClientRect();
+        return { x: Math.round(rect.left), y: Math.round(rect.top) };
+      })()
+    `);
+    if (!webviewRect) return null;
+    return { x: contentBounds.x + webviewRect.x, y: contentBounds.y + webviewRect.y };
+  });
+
   // Forward window resize events to renderer for live size display
   win.on('resize', () => {
     const bounds = win.getContentBounds();
     win.webContents.send(IPC_CHANNELS.BROWSER_WINDOW_RESIZED, { width: bounds.width, height: bounds.height });
+  });
+
+  // Capture ESC/Space from webview webContents and forward to renderer
+  const setupWebviewKeyCapture = (wc: Electron.WebContents) => {
+    wc.on('before-input-event', (event, input) => {
+      if (input.key === 'Escape' && !input.control && !input.alt && !input.meta) {
+        event.preventDefault();
+        win.webContents.send(IPC_CHANNELS.KEY_ESC);
+      }
+      if (input.key === ' ' && !input.control && !input.alt && !input.meta) {
+        event.preventDefault();
+        win.webContents.send(IPC_CHANNELS.KEY_SPACE);
+      }
+    });
+  };
+
+  const existingWebview = webContents.getAllWebContents().find(wc => wc.getType() === 'webview');
+  if (existingWebview) {
+    setupWebviewKeyCapture(existingWebview);
+  }
+  app.on('web-contents-created', (_event, wc) => {
+    if (wc.getType() === 'webview') {
+      setupWebviewKeyCapture(wc);
+    }
   });
 
 });

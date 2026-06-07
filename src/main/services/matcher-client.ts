@@ -76,6 +76,14 @@ export class MatcherClient {
     return this.post<ClickResponse>('/click', req);
   }
 
+  async clickAbort(): Promise<{ success: boolean }> {
+    return this.post<{ success: boolean }>('/click-abort', {});
+  }
+
+  async move(req: { x: number; y: number; duration?: number }): Promise<{ success: boolean; x?: number; y?: number; error?: string }> {
+    return this.post('/move', req);
+  }
+
   async health(): Promise<HealthResponse> {
     return this.get<HealthResponse>('/health');
   }

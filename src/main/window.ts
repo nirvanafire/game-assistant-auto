@@ -16,10 +16,15 @@ export function createMainWindow(): BrowserWindow {
   });
   mainWindow.setMenu(null);
 
-  // F12 to toggle DevTools
   mainWindow.webContents.on('before-input-event', (_event, input) => {
     if (input.key === 'F12') {
       mainWindow?.webContents.toggleDevTools();
+    }
+    if (input.key === 'Escape' && !input.control && !input.alt && !input.meta) {
+      mainWindow?.webContents.send('key:esc');
+    }
+    if (input.key === ' ' && !input.control && !input.alt && !input.meta) {
+      mainWindow?.webContents.send('key:space');
     }
   });
 

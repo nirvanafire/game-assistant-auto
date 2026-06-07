@@ -120,8 +120,8 @@ def _try_match(
     _, max_val, _, max_loc = cv2.minMaxLoc(result)
 
     if max_val >= threshold:
-        center_x = max_loc[0] + new_w // 2
-        center_y = max_loc[1] + new_h // 2
+        center_x = max_loc[0] + new_w / 2
+        center_y = max_loc[1] + new_h / 2
         return {
             'matched': True,
             'x': center_x,

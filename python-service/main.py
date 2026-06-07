@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 from flask import Flask, request, jsonify
 from matcher import match_template, match_group
-from clicker import move_and_click
+from clicker import move_and_click, request_abort, move_to
 from config import DEFAULT_THRESHOLD, DEFAULT_SCALE_RANGE
 
 app = Flask(__name__)
@@ -74,6 +74,20 @@ def click():
     result = move_and_click(x, y, button=button, count=count, interval=interval, duration=duration)
     return jsonify(result)
 
+@app.route('/click-abort', methods=['POST'])
+def click_abort():
+    result = request_abort()
+    return jsonify(result)
+
+@app.route('/move', methods=['POST'])
+def move():
+    data = request.json
+    x = int(data['x'])
+    y = int(data['y'])
+    duration = float(data.get('duration', 0.0))
+    result = move_to(x, y, duration=duration)
+    return jsonify(result)
+
 def decode_image(base64_str: str) -> np.ndarray:
     import base64
     if ',' in base64_str:
@@ -85,4 +99,4 @@ def decode_image(base64_str: str) -> np.ndarray:
 if __name__ == '__main__':
     import sys
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 5000
-    app.run(host='127.0.0.1', port=port, debug=False)
+    app.run(host='127.0.0.1', port=port, debug=False, threaded=True)
